@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 import { notificationText } from "@/lib/notifications/display";
@@ -15,32 +16,51 @@ import type { NotificationType } from "@/lib/supabase/database.types";
  * The scanner is looking at their result on screen. The person whose code was
  * scanned took no action at all, so they need a different trigger path entirely:
  *
- *   app open   -> this component, via Realtime. A live scan REDIRECTS them to
- *                 the scanner's profile page, mirroring what the scanner is
- *                 already looking at, so one scan leaves both people holding
- *                 each other's contact.
- *   app closed -> Web Push (the service worker), which opens the same page
- *   on reopen  -> the reconcile pass below, which prompts rather than redirects
+ *   app foreground -> Realtime, below. A live scan REDIRECTS them to the
+ *                     scanner's profile page, mirroring what the scanner is
+ *                     already looking at, so one scan leaves both people holding
+ *                     each other's contact.
+ *   app returns    -> the reconcile pass, which ALSO redirects when the event is
+ *                     recent enough to still be the same encounter.
+ *   app closed     -> Web Push, which opens the same page on tap.
  *
- * That third one is not redundancy. §5.2 step 4 is explicit that Realtime must
- * not be trusted for delivery: a dropped websocket, a backgrounded tab, or a
- * device asleep during the insert all lose the event with no error anywhere.
- * Reconciling against unread rows on mount is what actually guarantees they find
- * out.
+ * The reconcile pass is not redundancy. §5.2 step 4 is explicit that Realtime
+ * must not be trusted for delivery: a dropped websocket, a backgrounded tab, or
+ * a device asleep during the insert all lose the event with no error anywhere.
  */
+
+/**
+ * How recent a connection has to be for arriving at the app to still count as
+ * "this is happening now" and redirect rather than prompt.
+ *
+ * A scan is an in-person event — the other person is standing there. Two minutes
+ * covers a phone that was locked or backgrounded across the scan and unlocked
+ * straight after, which is the ordinary case and the one that previously needed
+ * a notification tap. It is deliberately short: redirecting someone into a
+ * connection page for an encounter they have already walked away from is worse
+ * than the toast.
+ */
+const FRESH_MS = 120_000;
+
+type Row = {
+  id: string;
+  type: string;
+  source_profile_id: string;
+  created_at?: string;
+};
+
 export function ConnectionListener({ userId }: { userId: string }) {
   const router = useRouter();
   // Notification ids already surfaced this session, so the reconcile pass and a
-  // Realtime event for the same row can't produce two toasts.
+  // Realtime event for the same row can't produce two toasts or two redirects.
   const seen = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     const supabase = createClient();
+    let disposed = false;
+    let channel: RealtimeChannel | null = null;
 
-    function announce(
-      row: { id: string; type: string; source_profile_id: string },
-      { live }: { live: boolean },
-    ) {
+    function announce(row: Row, { live }: { live: boolean }) {
       if (seen.current.has(row.id)) return;
       seen.current.add(row.id);
 
@@ -60,24 +80,19 @@ export function ConnectionListener({ userId }: { userId: string }) {
         // save open; this puts the scanned person on the SCANNER's profile with
         // the save open, so both people walk away with each other's contact from
         // the one scan. The two of them are standing together when this fires —
-        // a toast asking them to opt in to the thing they just agreed to in
+        // a prompt asking them to opt in to the thing they just agreed to in
         // person is a step that only loses people.
         //
-        // Three conditions, all necessary:
-        //
-        //   live               a Realtime event means the scan is happening NOW.
-        //                      The reconcile pass below replays up to five
-        //                      UNREAD rows on every mount, and redirecting off
-        //                      those would yank the user to a random connection
-        //                      days later, every time they open the app.
-        //   new_connection     never on major_change / accumulated_changes —
-        //                      navigating someone away because a contact edited
-        //                      their bio would be indefensible.
-        //   not deleted        §8: no card worth opening.
-        const redirect =
-          live && row.type === "new_connection" && !profile?.deleted_at;
-
-        if (redirect) {
+        //   live            the encounter is still happening — either a Realtime
+        //                   event, or a reconcile of a row younger than
+        //                   FRESH_MS. Older rows fall through to the toast: they
+        //                   would otherwise yank the user into a random
+        //                   connection page every time they open the app.
+        //   new_connection  never on major_change / accumulated_changes —
+        //                   navigating someone away because a contact edited
+        //                   their bio would be indefensible.
+        //   not deleted     §8: no card worth opening.
+        if (live && row.type === "new_connection" && !profile?.deleted_at) {
           const target = `/connections/${row.source_profile_id}`;
           // Guards the mutual-scan case: if both people scan at once, whoever is
           // already on the other's page must not be bounced through it again and
@@ -91,10 +106,9 @@ export function ConnectionListener({ userId }: { userId: string }) {
         // stale text, and the name is whatever it is right now (§1).
         const copy = notificationText(row.type as NotificationType, name);
 
-        // Everything that is NOT a live scan still gets §5.2 step 2's prompt
-        // rather than a redirect. A toast action click carries transient
-        // activation, so the save can open straight from here without the
-        // intermediate page.
+        // Everything that is NOT a live encounter still gets §5.2 step 2's
+        // prompt. A toast action click carries transient activation, so the save
+        // can open straight from here without the intermediate page.
         const offerSave = row.type === "new_connection" && !profile?.deleted_at;
 
         toast(copy.title, {
@@ -116,41 +130,77 @@ export function ConnectionListener({ userId }: { userId: string }) {
       })();
     }
 
-    // 1. Catch up on anything missed while the app was closed or the socket down.
-    void (async () => {
+    /**
+     * Catches up on anything Realtime didn't deliver, and treats anything recent
+     * as live. This is what makes the redirect survive a locked phone: B's screen
+     * is off when A scans, the socket is asleep, and the row lands with nothing
+     * listening — then B unlocks and lands on A's page without touching a
+     * notification.
+     */
+    async function reconcile() {
       const { data } = await supabase
         .from("notifications")
-        .select("id, type, source_profile_id")
+        .select("id, type, source_profile_id, created_at")
         .is("read_at", null)
         .order("created_at", { ascending: false })
         .limit(5);
 
-      for (const row of data ?? []) announce(row, { live: false });
+      for (const row of data ?? []) {
+        const age = row.created_at ? Date.now() - new Date(row.created_at).getTime() : Infinity;
+        announce(row, { live: age < FRESH_MS });
+      }
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === "visible") void reconcile();
+    }
+
+    void (async () => {
+      // THE SOCKET MUST BE AUTHENTICATED BEFORE IT SUBSCRIBES.
+      //
+      // supabase-js only pushes the access token to Realtime from an
+      // onAuthStateChange handler, which fires asynchronously once the auth
+      // client has loaded the session from cookies. Subscribing before that
+      // lands — which is what a bare `useEffect` does — joins the channel with
+      // nothing but the anon apikey. `notifications` is RLS'd to
+      // `recipient_id = auth.uid()`, so every row is then filtered out for a
+      // subscriber the server sees as anonymous.
+      //
+      // The failure mode is the reason this is spelled out: the channel still
+      // reports SUBSCRIBED and no error is raised anywhere. It simply never
+      // delivers, and the feature degrades to "works only if you tap the push
+      // notification" with nothing in the console to explain why.
+      const { data } = await supabase.auth.getSession();
+      if (disposed) return;
+      await supabase.realtime.setAuth(data.session?.access_token);
+      if (disposed) return;
+
+      channel = supabase
+        .channel(`notifications:${userId}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "notifications",
+            // RLS still applies to Realtime, so this filter is a bandwidth
+            // optimisation rather than the security boundary — a wrong filter
+            // would leak nothing, just deliver noise.
+            filter: `recipient_id=eq.${userId}`,
+          },
+          (payload) => announce(payload.new as Row, { live: true }),
+        )
+        .subscribe();
+
+      await reconcile();
     })();
 
-    // 2. Live delivery while the app is open. RLS still applies to Realtime, so
-    //    the filter is a bandwidth optimisation rather than the security
-    //    boundary — a wrong filter would leak nothing, just deliver noise.
-    const channel = supabase
-      .channel(`notifications:${userId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "notifications",
-          filter: `recipient_id=eq.${userId}`,
-        },
-        (payload) => {
-          announce(payload.new as { id: string; type: string; source_profile_id: string }, {
-            live: true,
-          });
-        },
-      )
-      .subscribe();
+    document.addEventListener("visibilitychange", onVisibilityChange);
 
     return () => {
-      void supabase.removeChannel(channel);
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (channel) void supabase.removeChannel(channel);
     };
   }, [router, userId]);
 
