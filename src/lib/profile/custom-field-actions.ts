@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { triggerFanOut } from "@/lib/notifications/trigger";
 import {
   MAX_CUSTOM_FIELDS,
   MAX_LABEL_LENGTH,
@@ -51,6 +52,8 @@ function describe(code: string | undefined, fallback: string): string {
       return `You've reached the limit of ${MAX_CUSTOM_FIELDS} custom fields.`;
     case "42501":
       return "You don't have permission to change that.";
+    case "53400": // the §7 profile-mutation rate limit
+      return "You've made a lot of changes recently. Try again in a little while.";
     default:
       return fallback;
   }
@@ -89,6 +92,7 @@ export async function addCustomField(
 
   if (error) return { ok: false, message: describe(error.code, "Couldn't add that field.") };
 
+  triggerFanOut(user.id);
   revalidatePath("/profile");
   return { ok: true };
 }
@@ -118,6 +122,7 @@ export async function updateCustomField(
 
   if (error) return { ok: false, message: describe(error.code, "Couldn't save that field.") };
 
+  triggerFanOut(user.id);
   revalidatePath("/profile");
   return { ok: true };
 }
@@ -134,6 +139,7 @@ export async function deleteCustomField(id: string): Promise<FieldResult> {
 
   if (error) return { ok: false, message: describe(error.code, "Couldn't delete that field.") };
 
+  triggerFanOut(user.id);
   revalidatePath("/profile");
   return { ok: true };
 }
@@ -151,6 +157,9 @@ export async function reorderCustomFields(orderedIds: string[]): Promise<FieldRe
   const { error } = await supabase.rpc("reorder_custom_fields", { field_ids: orderedIds });
   if (error) return { ok: false, message: describe(error.code, "Couldn't save the new order.") };
 
+  // Deliberately NO triggerFanOut here. Reordering writes only sort_order, which
+  // produces no change event by design (§5.4) — there is nothing to fan out, and
+  // firing the worker would just take the advisory lock for no reason.
   revalidatePath("/profile");
   return { ok: true };
 }

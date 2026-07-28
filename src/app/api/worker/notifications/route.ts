@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 import { runNotificationWorker } from "@/lib/notifications/worker";
+import { log, timed } from "@/lib/observability";
+import { shouldRun, timeBudgetMs } from "@/lib/notifications/schedule";
 
 /**
  * Drives the §5.4 fan-out. Intended triggers:
@@ -46,13 +48,42 @@ async function handle(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
+  // `?force=1` (or any Database Webhook, which sets it) bypasses the weekly
+  // gate: a webhook only fires because an event was just written, so there is
+  // genuinely something to deliver. WORKER_MODE=off still wins.
+  const force = request.nextUrl.searchParams.get("force") === "1";
+  const decision = shouldRun({ force });
+
+  if (!decision.run) {
+    log.info("worker.notifications.skipped", { mode: decision.mode, reason: decision.reason });
+    return NextResponse.json({ ok: true, skipped: true, ...decision });
+  }
+
   try {
-    const summary = await runNotificationWorker();
-    return NextResponse.json({ ok: true, ...summary });
-  } catch (cause) {
-    // Log the detail, return a generic body — this endpoint is reachable by
-    // anyone who can guess the URL, even though they can't authenticate.
-    console.error("notification worker failed", cause);
+    const summary = await timed("worker.notifications", { mode: decision.mode }, () =>
+      runNotificationWorker({ budgetMs: timeBudgetMs() }),
+    );
+    if (!summary.drained) {
+      // Ran out of time with profiles still pending. Safe — events stay
+      // unprocessed and the next run resumes — but worth surfacing, because on a
+      // once-a-day Hobby cron a persistent backlog means a day of silence.
+      log.warn("worker.notifications.budget_exhausted", {
+        processed: summary.profilesProcessed,
+      });
+    }
+    if (summary.truncated.length > 0) {
+      // §5.4 defers the "one profile with 100,000 connections" case deliberately.
+      // Seeing this repeatedly is the signal that it has arrived and needs a
+      // different notification model, not a bigger loop.
+      log.warn("worker.notifications.truncated", {
+        profiles: summary.truncated.length,
+      });
+    }
+    return NextResponse.json({ ok: true, mode: decision.mode, ...summary });
+  } catch {
+    // `timed` already logged the detail. Return a generic body — this endpoint
+    // is reachable by anyone who can guess the URL, even though they can't
+    // authenticate.
     return NextResponse.json({ error: "Worker run failed." }, { status: 500 });
   }
 }

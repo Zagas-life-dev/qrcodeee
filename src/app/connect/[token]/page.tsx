@@ -121,6 +121,17 @@ export default async function ConnectPage({
         </Shell>
       );
 
+    case "rate_limited":
+      return (
+        <Shell title="Slow down for a moment">
+          <p className="text-sm opacity-70">
+            You&apos;ve scanned a lot in a short space of time. Wait a minute and
+            try again — nothing has gone wrong with your account.
+          </p>
+          <Actions />
+        </Shell>
+      );
+
     case "unauthenticated":
       redirect(`/login?next=${encodeURIComponent(`/connect/${token}`)}`);
       break;

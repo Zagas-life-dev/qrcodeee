@@ -67,7 +67,9 @@ export type ScanResult =
   | { status: "self_scan" }
   | { status: "invalid_token" }
   | { status: "blocked" }
-  | { status: "unauthenticated" };
+  | { status: "unauthenticated" }
+  /** §7. Scans/minute, failed scans/hour, or new connections/hour. */
+  | { status: "rate_limited" };
 
 export type ReportCategory =
   | "spam"
@@ -233,6 +235,23 @@ export type Database = {
         };
         Relationships: [];
       };
+      /**
+       * §7. RLS on with ZERO policies — clients neither read nor write this.
+       * Reading it would hand a caller a precise "how close am I to the limit"
+       * oracle, which is exactly what an abuser wants.
+       */
+      rate_events: {
+        Row: {
+          id: number;
+          actor_id: string;
+          action: string;
+          subject: string | null;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       contact_saves: {
         Row: {
           owner_id: string;
@@ -281,6 +300,63 @@ export type Database = {
       rotate_qr_token: {
         Args: Record<string, never>;
         Returns: string;
+      };
+      /**
+       * SECURITY DEFINER (§5.6). Returns false for "not found", "not yours" and
+       * "already disconnected" alike — distinguishing them would be an oracle.
+       */
+      disconnect_connection: {
+        Args: { p_connection_id: string };
+        Returns: boolean;
+      };
+      /**
+       * SECURITY DEFINER (§5.6). No arguments by design: the filter is pinned to
+       * auth.uid(), so it can only return the caller's own block list. Needed
+       * because blocking someone also hides their profile from the blocker.
+       */
+      list_blocked: {
+        Args: Record<string, never>;
+        Returns: {
+          profile_id: string;
+          name: string;
+          photo_url: string | null;
+          blocked_at: string;
+        }[];
+      };
+      /**
+       * SECURITY DEFINER (§8). Soft-deletes and scrubs the caller's profile.
+       * Never touches auth.users — that would cascade away the "Deleted account"
+       * placeholder other people's connection history depends on.
+       */
+      delete_my_account: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      /**
+       * SECURITY INVOKER (§11). Search + pagination + total in one round trip;
+       * RLS does all the filtering, so the function holds no auth logic.
+       */
+      search_connections: {
+        Args: { p_query?: string | null; p_limit?: number; p_offset?: number };
+        Returns: {
+          connection_id: string;
+          profile_id: string;
+          name: string;
+          photo_url: string | null;
+          deleted_at: string | null;
+          connected_at: string;
+          total_count: number;
+        }[];
+      };
+      /** service_role only (§8 + §7). Batched; loop while `more` is true. */
+      run_retention: {
+        Args: { p_batch?: number };
+        Returns: {
+          change_events: number;
+          notifications: number;
+          rate_events: number;
+          more: boolean;
+        };
       };
       /** service_role only (§5.4). Profiles with unprocessed change events. */
       pending_change_profiles: {

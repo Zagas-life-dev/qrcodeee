@@ -5,12 +5,14 @@ npm run dev         # local app
 npm test            # 61 unit tests (offline, fast)
 npm run lint
 npm run db:migrate  # apply pending migrations
-npm run db:verify   # 215 structural + behavioural checks against the real DB
+npm run db:verify   # 311 structural + behavioural checks against the real DB
 ```
 
-`db:verify` runs four suites: `verify-schema` (structure and grants),
-`verify-rls` (policies, as two real signed-in users), `verify-connect`
-(§5.1 scan/connect edge cases) and `verify-worker` (§5.4 fan-out).
+`db:verify` runs seven suites: `verify-schema` (structure and grants),
+`verify-rls` (policies, as two real signed-in users), `verify-connect` (§5.1
+scan/connect edge cases), `verify-worker` (§5.4 fan-out), `verify-moderation`
+(§5.6 disconnect/block/report), `verify-rate-limits` (§7) and `verify-deletion`
+(§8 deletion + retention).
 
 ## 1. Environment
 
@@ -45,11 +47,17 @@ the Supabase CLI uses, so a later `supabase db push` won't re-run them).
 
 | File | Contents |
 |---|---|
-| `…120000_init_schema.sql` | `private` schema, suppression helper, 8 tables + indexes |
+| `…120000_init_schema.sql` | `private` schema, suppression helper, core tables + indexes |
 | `…120100_init_triggers.sql` | `updated_at`, version bumps, change events, field-count limit, signup trigger |
 | `…120200_init_rls.sql` | `private` policy helpers, RLS policies, column grants, realtime publication |
-| `…120300_fix_change_event_array_append.sql` | fixes a runtime failure in two change-event functions |
-| `…120400_fix_change_events_on_profile_delete.sql` | fixes the hard-erasure cascade |
+| `…1203/1204_fix_*.sql` | two runtime bugs in the spec's SQL — see §5 below |
+| `…13/14xxxx_*.sql` | photo_url host allowlist, custom-field reorder RPC |
+| `…15/16xxxx_*.sql` | `connect_via_scan`, `rotate_qr_token`, anon grant revokes |
+| `…17xxxx_*.sql` | push subscriptions + registration RPC |
+| `…18xxxx_*.sql` | §5.4 fan-out worker, contact-save timestamps |
+| `…19xxxx_*.sql` | §5.6 disconnect + `list_blocked` |
+| `…20xxxx_*.sql` | §7 rate limiting (table, helper, triggers, scan limits) |
+| `…21xxxx_*.sql` | §8 account deletion, retention, connection search |
 
 Order matters for the first three: the `private` policy helpers are SQL-language
 functions, so Postgres parses their bodies at `CREATE` time and they reference
@@ -125,18 +133,49 @@ closed** — with no secret configured it returns 503 rather than running, becau
 an open worker endpoint is a notification-spam amplifier that fans out to every
 connection of every pending profile.
 
-Two triggers, and both are wanted:
+### Delivery on Vercel Hobby
 
-- **Supabase Database Webhook** on `profile_change_events` INSERT — the
-  low-latency path. Dashboard → Database → Webhooks, HTTP POST to the route with
-  the `x-worker-secret` header.
-- **Cron** (`vercel.json`) — the safety net. A crashed run deliberately leaves
-  events unprocessed so the next pass redoes them, which is safe because of the
-  idempotency index and the monotonic watermark. Minute-level crons need a paid
-  Vercel plan; on Hobby this degrades to daily and the webhook carries delivery.
+**Vercel reads cron schedules from `vercel.json` at deploy time, so no
+environment variable can change *when* a cron fires** — and Hobby caps crons at
+once per day, so a minutely expression simply won't run. Delivery therefore does
+not depend on cron at all. Three paths, in order of importance:
+
+1. **In-app trigger** (`src/lib/notifications/trigger.ts`) — the moment someone
+   saves a profile or custom field, their events are fanned out inside
+   `after()`. The user's save returns immediately; the connection hears about a
+   changed phone number about a second later. **This is what makes Hobby feel
+   live.** Nothing to configure.
+2. **Supabase Database Webhook** on `profile_change_events` INSERT — catches
+   anything written outside the app (SQL editor, admin tooling). Dashboard →
+   Database → Webhooks → HTTP POST to
+   `/api/worker/notifications?force=1` with an `x-worker-secret` header. Free and
+   outside the cron limit.
+3. **Daily cron** — the safety net. A crashed run leaves events unprocessed by
+   design so the next pass redoes them, which is safe because of the idempotency
+   index and the monotonic watermark.
 
 Set `CRON_SECRET` in Vercel to the same value as `WORKER_SECRET` — Vercel Cron
 sends its own secret as the bearer token.
+
+### The `WORKER_MODE` switch
+
+Controls what each invocation **does**, since the schedule itself is fixed.
+
+| Value | Behaviour |
+|---|---|
+| `continuous` (default) | Run on every hit, draining for up to 45s. |
+| `weekly` | Only do work on `WORKER_WEEKLY_DAY` (0=Sunday, default 1=Monday); no-op the other six days, returning in milliseconds. |
+| `off` | Never run. **Beats `?force=1`** — a stop switch some callers can override isn't a switch. |
+
+`?force=1` bypasses the weekly gate, which is why the webhook uses it: a webhook
+only fires because an event was just written, so there is genuinely work to do.
+
+An unrecognised value falls back to `continuous`, deliberately — a typo that
+silently stops delivering notifications is a far worse failure than one that
+delivers them.
+
+Both worker routes honour the switch. Changing it in the Vercel dashboard needs a
+redeploy to take effect.
 
 The batching logic is in SQL (`process_change_batch`), not in the route handler.
 §5.4 requires a per-profile advisory lock and one transaction per batch, and
@@ -145,7 +184,104 @@ statements — so a JavaScript implementation could honour neither. In SQL, one
 call *is* one transaction, which makes the lock and the batch boundary the same
 thing.
 
-## 7. What `db:verify` covers
+## 7. Rate limiting (§7)
+
+Two layers, and they are not equally trustworthy.
+
+**Database-backed, per actor — this is the real one.** A `rate_events` table with
+RLS on and *zero* policies, checked and appended inside the RPCs and triggers
+that already gate every write. It survives restarts and is shared across every
+serverless instance, which is precisely what an in-memory counter gets wrong.
+
+| Limit | Cap | Where |
+|---|---|---|
+| Scans | 30/min | `connect_via_scan`, before the token is even resolved |
+| Failed scans, per user | 15/hour | enumeration signal |
+| Failed scans, per token | 30/hour across all users | hammering a rotated-out code |
+| New connections | 60/hour | both the new and reactivate paths |
+| Profile mutations | 60/hour | triggers on profiles / contact_details / custom_fields |
+| Reports | 10/hour | trigger on reports |
+| Token rotation | 10/hour | `rotate_qr_token` |
+
+Two exemptions, both load-bearing: a **null actor** (signup trigger, notification
+worker, retention jobs) and the **`app.suppress_change_events` flag**. Without the
+second, account deletion — which removes every custom field in one transaction —
+would look like abuse and a user could be locked out of deleting their own
+account.
+
+**Per-IP at the edge — a speed bump, not a control.** `src/proxy.ts` limits
+`/connect/`, `/api/avatar/sign` and `/api/contacts/` per IP. §7 is explicit that
+in-memory counters in a serverless function get limits wrong, and this is one:
+state is per-instance, so N warm instances means N times the allowance, and a
+cold start resets the window. It exists because nothing in front of the scan
+endpoints is worse. **The real answer at scale is a WAF rule or Vercel's own IP
+rate limiting, configured outside the app.**
+
+### Two things that would break the product if done naively
+
+- **Per-token limits count failed attempts only.** A QR code on a conference
+  badge scanned by fifty people in ten minutes is the success case. Capping
+  successful scans per token would start refusing legitimate connections exactly
+  when the app is working.
+- **Reordering costs zero mutation budget.** One drag rewrites `sort_order` on up
+  to 20 rows. The rate triggers carry the same `sort_order` exclusion as the
+  change-event triggers, or three drags would exhaust an hourly budget of 60.
+  Both are asserted in `verify-rate-limits`.
+
+## 8. Account deletion (§8)
+
+`delete_my_account()` — soft delete only. The `profiles` row survives, scrubbed
+(`name = 'Deleted account'`, photo/bio cleared, `qr_token` rotated), so other
+people's connection history resolves to a placeholder rather than a broken
+reference. `on delete cascade` does none of this: it fires on a row DELETE, and
+this is an UPDATE, so every step is explicit.
+
+`set_config('app.suppress_change_events','on',true)` is the **first statement and
+not optional**. Without it, deleting your account fans out "they changed their
+phone and email" to every connection you ever had, and offers each of them the
+one-tap "Update phone contact" action that rewrites their address book entry to
+read `Deleted account`. It also exempts the transaction from the §7 mutation
+limit — a bulk delete of 20 custom fields otherwise looks like abuse.
+
+**The flow also bans the auth user.** §8 says never to touch `auth.users`,
+because deleting it cascades away the placeholder — but leaving the record fully
+active means a "deleted" user just signs in again to an empty shell. Banning
+disables sign-in without removing the row, which is the only option satisfying
+both constraints.
+
+**Connections are left ACTIVE** (§8 step 5, a decision the spec leaves open). The
+placeholder is the whole point of the design; disconnecting would throw away the
+history it exists to serve. The per-connection Disconnect action is offered for
+deleted accounts so anyone who wants it gone can remove it themselves.
+
+### Retention
+
+`POST /api/worker/retention` (same `WORKER_SECRET`, daily cron in `vercel.json`).
+Prunes processed change events >90d, read notifications >180d, and rate_events
+>1d. **Unprocessed change events are never pruned regardless of age** — they are
+the worker's backlog, and deleting one silently drops a notification. Every
+delete is batched; the route loops until the backlog drains.
+
+One thing to watch: §8 says keep unread notifications until read, which is
+unbounded. A user who never opens the app accumulates rows forever. Following the
+spec, but it's the table most likely to surprise you at 100k MAU.
+
+## 9. Observability (§9)
+
+`GET /api/health` — unauthenticated returns `{ok, db}` for uptime monitors;
+with the worker secret it adds queue depths.
+
+`pendingEvents` is the number §9 wants an alert on. `oldestPendingAgeSeconds` is
+the more useful one: a backlog of 5 that is two hours old means the worker isn't
+running at all, which a small count alone would hide. `prunableRateEvents` being
+non-zero means the retention cron isn't firing.
+
+Worker routes emit one JSON object per line (`src/lib/observability.ts`) so log
+search can answer §9's questions. **This is not an APM.** Latency histograms,
+alerting and dashboards still need real tooling — this gives you the event
+stream to build them from.
+
+## 10. What `db:verify` covers
 
 **Structural (83)** — table/RLS presence, policy shape, that no policy inlines a
 `blocks` subquery, column-level UPDATE grants, `private` function security

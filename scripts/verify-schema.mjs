@@ -24,7 +24,7 @@ function check(label, ok, detail) {
 const TABLES = [
   "profiles", "contact_details", "custom_fields", "connections",
   "blocks", "reports", "profile_change_events", "notifications",
-  "push_subscriptions", "contact_saves",
+  "push_subscriptions", "contact_saves", "rate_events",
 ];
 
 const client = await connect();
@@ -57,6 +57,8 @@ try {
     byTable.connections?.length === 1 && byTable.connections[0].cmd === "SELECT");
   check("profile_change_events has ZERO policies (RLS on, no access)",
     (byTable.profile_change_events ?? []).length === 0);
+  check("rate_events has ZERO policies (reading it would be a limit oracle)",
+    (byTable.rate_events ?? []).length === 0);
   check("notifications has 2 policies (select + update, no insert)",
     byTable.notifications?.length === 2 &&
     !byTable.notifications.some((p) => p.cmd === "INSERT"));

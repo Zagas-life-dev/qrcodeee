@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
+import { triggerFanOut } from "@/lib/notifications/trigger";
 
 type FieldName = "name" | "bio" | "phone" | "email";
 
@@ -108,6 +109,11 @@ export async function updateProfile(
     return { status: "error", message: describe(contactError.code) };
   }
 
+  // Fan out now rather than waiting for the cron. On Vercel Hobby that wait is
+  // up to 24 hours; here the connection hears about a changed phone number in
+  // about a second.
+  triggerFanOut(user.id);
+
   revalidatePath("/profile");
   return { status: "success", message: "Profile saved." };
 }
@@ -124,6 +130,8 @@ function describe(code: string | undefined): string {
       return "That value is already in use.";
     case "42501": // insufficient_privilege — an RLS denial
       return "You don't have permission to change that.";
+    case "53400": // the §7 profile-mutation rate limit
+      return "You've made a lot of changes recently. Try again in a little while.";
     default:
       return "Couldn't save your profile. Please try again.";
   }

@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
+import { checkEdgeLimit, clientIp } from "@/lib/rate-limit-edge";
+
 /**
  * Refreshes the Supabase auth session on every request and forwards the rotated
  * cookies to both the incoming request (so Server Components in this same render
@@ -19,7 +21,33 @@ import { createServerClient } from "@supabase/ssr";
  * (Renamed from `middleware.ts`: the middleware file convention is deprecated in
  * Next 16.2 in favour of `proxy`.)
  */
+/**
+ * Paths worth an IP-level speed bump (§7: "watch for rapid automated scanning
+ * patterns"). Scoped narrowly on purpose — a limit on ordinary page loads would
+ * catch a shared office NAT long before it caught anything abusive.
+ */
+const IP_LIMITED = [
+  { prefix: "/connect/", limit: 40, windowMs: 60_000 },
+  { prefix: "/api/avatar/sign", limit: 20, windowMs: 60_000 },
+  { prefix: "/api/contacts/", limit: 60, windowMs: 60_000 },
+];
+
 export async function proxy(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const rule = IP_LIMITED.find((r) => path.startsWith(r.prefix));
+  if (rule) {
+    const key = `${rule.prefix}:${clientIp(request.headers)}`;
+    if (!checkEdgeLimit(key, { limit: rule.limit, windowMs: rule.windowMs })) {
+      return new NextResponse("Too many requests. Please slow down.", {
+        status: 429,
+        headers: {
+          "Retry-After": String(Math.ceil(rule.windowMs / 1000)),
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+  }
+
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(

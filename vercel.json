@@ -2,9 +2,14 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "crons": [
     {
-      "comment": "§5.4 fan-out. The Database Webhook on profile_change_events is the low-latency path; this is the safety net that catches anything it dropped — a crashed run deliberately leaves events unprocessed for the next pass. Minute-level crons need a Vercel plan that allows them; on Hobby this falls back to daily and the webhook carries delivery.",
+      "comment": "§5.4 fan-out safety net. DAILY, not minutely: Vercel Hobby caps crons at once per day and a more frequent expression will not run there. What each hit does is controlled by WORKER_MODE (continuous | weekly | off) — see docs/setup.md. Low-latency delivery does NOT depend on this: the Supabase Database Webhook and the opportunistic trigger in src/lib/notifications/trigger.ts both fire the moment an event is written.",
       "path": "/api/worker/notifications",
-      "schedule": "* * * * *"
+      "schedule": "8 5 * * *"
+    },
+    {
+      "comment": "§8 retention prune. Each run loops until the backlog is drained, so daily is ample — the tightest window is rate_events at 24h.",
+      "path": "/api/worker/retention",
+      "schedule": "17 4 * * *"
     }
   ]
 }

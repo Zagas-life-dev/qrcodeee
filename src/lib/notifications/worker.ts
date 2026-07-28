@@ -25,32 +25,66 @@ type BatchResult = {
 };
 
 export type WorkerSummary = {
-  profiles: number;
+  /** Profiles whose events were drained — including those with no connections. */
+  profilesProcessed: number;
+  /** The subset that actually produced at least one notification. */
+  profilesNotified: number;
   skippedLocked: number;
   notified: number;
   pushed: number;
   truncated: string[];
+  /** False means the time budget ran out with profiles still pending. */
+  drained: boolean;
+};
+
+export type WorkerOptions = {
+  profileLimit?: number;
+  /**
+   * Restrict to specific profiles. Used by the opportunistic trigger, which
+   * knows exactly whose events it just caused and shouldn't pay for a full
+   * backlog sweep on a user's save.
+   */
+  profileIds?: string[];
+  /** Stop starting new profiles once this much wall time has elapsed. */
+  budgetMs?: number;
 };
 
 export async function runNotificationWorker(
-  { profileLimit = 50 }: { profileLimit?: number } = {},
+  { profileLimit = 50, profileIds, budgetMs = 45_000 }: WorkerOptions = {},
 ): Promise<WorkerSummary> {
   const admin = createAdminClient();
+  const startedAt = Date.now();
 
-  const { data: pending, error } = await admin.rpc("pending_change_profiles", {
-    p_limit: profileLimit,
-  });
-  if (error) throw new Error(`pending_change_profiles: ${error.message}`);
+  let pending: string[];
+  if (profileIds?.length) {
+    pending = profileIds;
+  } else {
+    const { data, error } = await admin.rpc("pending_change_profiles", {
+      p_limit: profileLimit,
+    });
+    if (error) throw new Error(`pending_change_profiles: ${error.message}`);
+    pending = (data ?? []) as unknown as string[];
+  }
 
   const summary: WorkerSummary = {
-    profiles: 0,
+    profilesProcessed: 0,
+    profilesNotified: 0,
     skippedLocked: 0,
     notified: 0,
     pushed: 0,
     truncated: [],
+    drained: true,
   };
 
-  for (const profileId of (pending ?? []) as unknown as string[]) {
+  for (const profileId of pending) {
+    // Checked before STARTING a profile, never mid-profile: abandoning a
+    // half-fanned-out profile is safe (events stay unprocessed, the next run
+    // redoes it) but wasteful, and the per-batch work is short anyway.
+    if (Date.now() - startedAt > budgetMs) {
+      summary.drained = false;
+      break;
+    }
+
     let cursor: string | null = null;
     let batchVersion: number | null = null;
     let notifiedForProfile = 0;
@@ -96,8 +130,14 @@ export async function runNotificationWorker(
     // bigger loop.
     if (!finished) summary.truncated.push(profileId);
 
+    // Counted separately because they answer different questions. A profile can
+    // be drained without notifying anyone — someone with no connections yet
+    // still generates change events. Collapsing the two made a healthy run
+    // report "profiles: 0" while it was doing real work, which is exactly the
+    // kind of metric that teaches people to ignore the dashboard.
+    summary.profilesProcessed += 1;
     if (notifiedForProfile > 0) {
-      summary.profiles += 1;
+      summary.profilesNotified += 1;
       summary.notified += notifiedForProfile;
     }
   }

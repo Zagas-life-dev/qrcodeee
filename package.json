@@ -10,7 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:migrate": "node --env-file=.env.local scripts/apply-migrations.mjs",
-    "db:verify": "node --env-file=.env.local scripts/verify-schema.mjs && node --env-file=.env.local scripts/verify-rls.mjs && node --env-file=.env.local scripts/verify-connect.mjs && node --env-file=.env.local scripts/verify-worker.mjs"
+    "db:verify": "node --env-file=.env.local scripts/verify-schema.mjs && node --env-file=.env.local scripts/verify-rls.mjs && node --env-file=.env.local scripts/verify-connect.mjs && node --env-file=.env.local scripts/verify-worker.mjs && node --env-file=.env.local scripts/verify-moderation.mjs && node --env-file=.env.local scripts/verify-rate-limits.mjs && node --env-file=.env.local scripts/verify-deletion.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.3",

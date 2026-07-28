@@ -62,6 +62,12 @@ export async function rotateToken(): Promise<QrResult> {
   if (!user) return { ok: false, message: "Your session expired. Sign in again." };
 
   const { data, error } = await supabase.rpc("rotate_qr_token");
+  if (error?.code === "53400") {
+    return {
+      ok: false,
+      message: "You've reset your code several times recently. Try again in an hour.",
+    };
+  }
   if (error || typeof data !== "string") {
     return { ok: false, message: "Couldn't reset your QR code. Please try again." };
   }

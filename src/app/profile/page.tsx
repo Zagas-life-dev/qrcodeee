@@ -6,6 +6,7 @@ import { signOut } from "@/lib/auth/actions";
 
 import { AvatarUpload } from "./avatar-upload";
 import { CustomFields } from "./custom-fields";
+import { DeleteAccount } from "./delete-account";
 import { ProfileForm } from "./profile-form";
 
 export const metadata = { title: "Your profile · QR Connect" };
@@ -89,6 +90,8 @@ export default async function ProfilePage() {
       />
 
       <CustomFields fields={customFields ?? []} />
+
+      <DeleteAccount />
     </main>
   );
 }
