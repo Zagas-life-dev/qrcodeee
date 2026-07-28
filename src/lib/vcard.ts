@@ -85,6 +85,11 @@ export type VCardInput = {
   email?: string | null;
   bio?: string | null;
   photoUrl?: string | null;
+  /**
+   * The photo BYTES. iOS and Android drop a `PHOTO;VALUE=URI:` line rather than
+   * resolving it, so this is what actually puts a face on the saved contact.
+   */
+  photo?: { base64: string; type: "JPEG" | "PNG" } | null;
   customFields?: { label: string; value: string | null }[];
   /** Where this contact came from — becomes a URL line. */
   sourceUrl?: string | null;
@@ -108,7 +113,17 @@ export function buildVCard(input: VCardInput): string {
 
   if (input.phone) lines.push(`TEL;TYPE=CELL:${escapeText(input.phone)}`);
   if (input.email) lines.push(`EMAIL;TYPE=INTERNET:${escapeText(input.email)}`);
-  if (input.photoUrl) lines.push(`PHOTO;VALUE=URI:${escapeText(input.photoUrl)}`);
+  // Base64 is NOT escaped: its alphabet contains none of the characters
+  // escapeText targets, and running it through would corrupt the payload the
+  // moment a `+` or `/` sat next to something it rewrote. Folding still applies
+  // — the encoded image is far past 75 octets, and importers unfold as normal.
+  if (input.photo) {
+    lines.push(`PHOTO;ENCODING=b;TYPE=${input.photo.type}:${input.photo.base64}`);
+  } else if (input.photoUrl) {
+    // Kept for the desktop clients that DO resolve a URI. Worthless on mobile,
+    // but a line that some importers use beats no line at all.
+    lines.push(`PHOTO;VALUE=URI:${escapeText(input.photoUrl)}`);
+  }
 
   // Custom fields ride in NOTE rather than as X- properties. Arbitrary X-
   // properties are dropped silently by iOS and several Android importers, so a

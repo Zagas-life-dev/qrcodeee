@@ -49,6 +49,25 @@ function isIOS(): boolean {
 }
 
 /**
+ * Whether saveContact() can usefully be fired on page load rather than from a
+ * tap. Only iOS — and the reason is per-platform, not caution:
+ *
+ *   iOS      the flow is a navigation to an inline vCard, which needs no user
+ *            activation. Safari presents the contact sheet over the page.
+ *   Android  Chrome explicitly refuses to launch an intent URL that wasn't
+ *            initiated by a user gesture. Auto-firing there does nothing at
+ *            best, and silently falls through to a download at worst.
+ *   Desktop  the flow is a file download. Firing one on page load is hostile
+ *            and browsers increasingly block it outright.
+ *
+ * Every caller must still render a real button — this is an accelerator for the
+ * platform that supports it, never the only way to reach the save.
+ */
+export function canAutoTrigger(): boolean {
+  return typeof navigator !== "undefined" && !ANDROID.test(navigator.userAgent) && isIOS();
+}
+
+/**
  * ACTION_INSERT against ContactsContract, as an intent URL Chrome can navigate.
  *
  * `browser_fallback_url` is load-bearing rather than defensive: Chrome only

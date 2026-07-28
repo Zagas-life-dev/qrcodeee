@@ -148,6 +148,60 @@ describe("structure", () => {
   });
 });
 
+describe("photo", () => {
+  // A base64 payload long enough to force folding, containing the two
+  // characters (+ and /) that a careless escape pass would corrupt.
+  const base64 = `${"AB+/".repeat(40)}==`;
+
+  it("embeds the bytes rather than a URI — importers drop URIs", () => {
+    const props = properties(
+      buildVCard({
+        name: "Jane",
+        photoUrl: "https://res.cloudinary.com/djm0gwdv/image/upload/x.jpg",
+        photo: { base64, type: "JPEG" },
+      }),
+    );
+
+    expect(props).toContain(`PHOTO;ENCODING=b;TYPE=JPEG:${base64}`);
+    expect(props.some((line) => line.startsWith("PHOTO;VALUE=URI"))).toBe(false);
+  });
+
+  it("survives folding and unfolding byte-for-byte", () => {
+    const vcard = buildVCard({ name: "Jane", photo: { base64, type: "PNG" } });
+
+    // Folded on the wire...
+    expect(vcard).toContain("\r\n ");
+    // ...and identical once unfolded. A fold that ate or added a character
+    // yields a corrupt image, which no test of "does a PHOTO line exist" catches.
+    const line = properties(vcard).find((l) => l.startsWith("PHOTO"));
+    expect(line).toBe(`PHOTO;ENCODING=b;TYPE=PNG:${base64}`);
+  });
+
+  it("does not escape the base64 alphabet", () => {
+    const props = properties(buildVCard({ name: "Jane", photo: { base64, type: "JPEG" } }));
+    const line = props.find((l) => l.startsWith("PHOTO"))!;
+    expect(line).not.toContain("\\");
+  });
+
+  it("falls back to a URI when the bytes could not be fetched", () => {
+    const props = properties(
+      buildVCard({
+        name: "Jane",
+        photoUrl: "https://res.cloudinary.com/djm0gwdv/image/upload/x.jpg",
+        photo: null,
+      }),
+    );
+    expect(props).toContain(
+      "PHOTO;VALUE=URI:https://res.cloudinary.com/djm0gwdv/image/upload/x.jpg",
+    );
+  });
+
+  it("omits PHOTO entirely when there is neither", () => {
+    const props = properties(buildVCard({ name: "Jane" }));
+    expect(props.some((l) => l.startsWith("PHOTO"))).toBe(false);
+  });
+});
+
 describe("foldLine", () => {
   it("leaves short lines alone", () => {
     expect(foldLine("FN:Jane")).toBe("FN:Jane");

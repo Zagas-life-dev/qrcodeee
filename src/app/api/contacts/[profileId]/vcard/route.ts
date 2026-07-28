@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { createClient } from "@/lib/supabase/server";
 import { buildVCard, vcardFilename } from "@/lib/vcard";
+import { fetchPhotoForVCard } from "@/lib/contacts/photo";
 import { siteUrl } from "@/lib/site";
 
 /**
@@ -101,6 +102,11 @@ export async function GET(
     email: contact?.email ?? null,
     bio: profile.bio,
     photoUrl: profile.photo_url,
+    // Awaited rather than raced with the response: a card without the photo is
+    // a card the user has to redo. fetchPhotoForVCard caps its own time at 3s
+    // and returns null rather than throwing, so the worst case is today's
+    // behaviour plus a short delay.
+    photo: await fetchPhotoForVCard(profile.photo_url),
     customFields: fields ?? [],
     sourceUrl: siteUrl(),
   });

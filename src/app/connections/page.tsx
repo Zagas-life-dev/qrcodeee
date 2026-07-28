@@ -11,12 +11,10 @@ export const metadata = { title: "Connections · QR Connect" };
 
 const PAGE_SIZE = 25;
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export default async function ConnectionsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string; save?: string }>;
+  searchParams: Promise<{ page?: string; q?: string }>;
 }) {
   const params = await searchParams;
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
@@ -27,13 +25,6 @@ export default async function ConnectionsPage({
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/connections");
-
-  // §5.2 step 3: arriving from a Web Push notification must land on the
-  // save-contact prompt for the person the notification was about — not on a
-  // list the user then has to search. `save` is a URL param, so it is untrusted
-  // and gets the same connection check the vCard endpoint applies; without it,
-  // any id would render a stranger's name back to the caller.
-  const saveTarget = await resolveSaveTarget(supabase, params.save);
 
   // One round trip for the page, the search and the total. The RPC runs
   // SECURITY INVOKER, so the connections and profiles policies (§4) do the
@@ -69,30 +60,6 @@ export default async function ConnectionsPage({
           </Link>
         </div>
       </div>
-
-      {/* The whole point of the notification, hoisted above the list and
-          focused. Still a tap, never a silent write — §5.2 point 3 and §10 are
-          explicit that the web cannot confirm (or perform) a contact write, so
-          this presents the OS prompt rather than claiming to have saved. */}
-      {saveTarget ? (
-        <div className="mt-6 rounded-lg border border-current/25 bg-current/3 p-4">
-          <p className="text-sm font-medium">
-            You connected with {saveTarget.name}
-          </p>
-          <p className="mt-1 text-sm opacity-70">
-            Save their contact so you don&apos;t lose it.
-          </p>
-          <div className="mt-3">
-            <SaveContactButton
-              profileId={saveTarget.id}
-              name={saveTarget.name}
-              autoFocus
-            >
-              Save {saveTarget.name}&apos;s contact
-            </SaveContactButton>
-          </div>
-        </div>
-      ) : null}
 
       <SearchBox initialQuery={query} />
 
@@ -189,41 +156,6 @@ export default async function ConnectionsPage({
       ) : null}
     </main>
   );
-}
-
-/**
- * Resolves `?save=<profileId>` to a person worth prompting about, or null.
- *
- * Returns null rather than throwing for every rejection — a stale push opened a
- * week after the connection was removed should quietly show the normal list, not
- * an error. §8: a deleted account has no card worth writing to an address book,
- * so it is filtered here as well as at the vCard endpoint.
- */
-async function resolveSaveTarget(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  profileId: string | undefined,
-): Promise<{ id: string; name: string } | null> {
-  // Validated before it reaches the filter string below, not merely because a
-  // non-UUID can't match: `.or()` takes PostgREST filter SYNTAX, so an
-  // unvalidated value here is interpolated into a query language, with commas
-  // and dots as its metacharacters.
-  if (!profileId || !UUID.test(profileId)) return null;
-
-  const { data: connection } = await supabase
-    .from("connections")
-    .select("id")
-    .or(`user_a.eq.${profileId},user_b.eq.${profileId}`)
-    .maybeSingle();
-  if (!connection) return null;
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name, deleted_at")
-    .eq("id", profileId)
-    .maybeSingle();
-  if (!profile || profile.deleted_at) return null;
-
-  return { id: profileId, name: profile.name };
 }
 
 function PageLink({
