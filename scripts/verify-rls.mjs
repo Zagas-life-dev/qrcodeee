@@ -61,7 +61,7 @@ try {
   users.b = await makeUser("b");
 
   const { rows: seeded } = await sql.query(
-    `select p.id, p.name, p.profile_version, p.qr_token,
+    `select p.id, p.name, p.profile_version,
             (cd.profile_id is not null) as has_contact_row
        from profiles p left join contact_details cd on cd.profile_id = p.id
       where p.id = any($1)`,
@@ -74,8 +74,12 @@ try {
   check("new profiles start at version 1 (empty contact row must not fire an event)",
     seeded.every((r) => r.profile_version === 1),
     seeded.map((r) => `${r.name}=v${r.profile_version}`).join(", "));
-  check("qr_token generated and unique",
-    seeded[0].qr_token && seeded[0].qr_token !== seeded[1].qr_token);
+  // §6: no permanent token exists to check any more. The equivalent property
+  // is that minting produces distinct tokens per user.
+  const { rows: minted } = await sql.query(
+    `select profile_id, token from qr_tokens where profile_id = any($1)`,
+    [[users.a.id, users.b.id]]);
+  check("no QR token exists until one is minted", minted.length === 0);
 
   console.log("\n== profile updates work at all (SECURITY DEFINER triggers) ==");
   // If the change-event trigger functions lost SECURITY DEFINER, this fails —
@@ -99,7 +103,13 @@ try {
     return error;
   };
   check("cannot write profile_version", Boolean(await denied({ profile_version: 999999 })));
-  check("cannot write qr_token", Boolean(await denied({ qr_token: "chosen-value" })));
+  // qr_token is gone; the equivalent is that qr_tokens is unreachable entirely.
+  check("cannot read the qr_tokens table",
+    ((await users.a.db.from("qr_tokens").select("token")).data ?? []).length === 0);
+  check("cannot insert a chosen qr_tokens row",
+    Boolean((await users.a.db.from("qr_tokens")
+      .insert({ token: "chosen-value", profile_id: users.a.id,
+                expires_at: new Date(Date.now() + 6e5).toISOString() })).error));
   check("cannot write deleted_at (would undo an account deletion)",
     Boolean(await denied({ deleted_at: null })));
 

@@ -115,7 +115,12 @@ try {
     JSON.stringify(profileCols) === JSON.stringify(["bio", "name", "photo_url", "qr_style"]),
     `got: ${profileCols.join(", ") || "(none)"}`);
   check("authenticated CANNOT update profiles.profile_version", !profileCols.includes("profile_version"));
-  check("authenticated CANNOT update profiles.qr_token", !profileCols.includes("qr_token"));
+  check("profiles.qr_token no longer exists (§6: no permanent codes)",
+    !profileCols.includes("qr_token"));
+  check("authenticated has no column grants at all on qr_tokens",
+    cols("qr_tokens", "authenticated").length === 0);
+  check("anon has no column grants at all on qr_tokens",
+    cols("qr_tokens", "anon").length === 0);
   check("authenticated CANNOT update profiles.deleted_at", !profileCols.includes("deleted_at"));
   check("anon has no UPDATE on profiles", cols("profiles", "anon").length === 0);
 
@@ -214,7 +219,10 @@ try {
     exposedTriggers.length === 0, exposedTriggers.map((f) => f.sig).join(", "));
 
   // The client RPCs must still work for signed-in users.
-  for (const sig of ["connect_via_scan(text)", "rotate_qr_token()", "reorder_custom_fields(uuid[])"]) {
+  for (const sig of [
+    "connect_via_scan(text)", "rotate_qr_token()", "mint_qr_token()",
+    "reorder_custom_fields(uuid[])",
+  ]) {
     const fn = publicFns.find((f) => f.sig.startsWith(sig.split("(")[0] + "("));
     check(`authenticated CAN still execute ${sig}`, fn?.auth_exec === true);
   }

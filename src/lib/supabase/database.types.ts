@@ -42,6 +42,15 @@ export type NotificationType =
  * public ones — the function filters them by hand, since SECURITY DEFINER means
  * RLS isn't doing it.
  */
+/**
+ * A minted QR token and the moment it stops resolving (§6).
+ *
+ * `expires_at` is returned rather than a duration so the client schedules its
+ * refresh against the server's clock, not its own — a device with a skewed
+ * clock would otherwise refresh early forever or, worse, display a dead code.
+ */
+export type MintedQrToken = { token: string; expires_at: string };
+
 export type ScannedProfile = {
   id: string;
   name: string;
@@ -88,7 +97,6 @@ export type Database = {
           name: string;
           photo_url: string | null;
           bio: string | null;
-          qr_token: string;
           qr_style: Json;
           profile_version: number;
           deleted_at: string | null;
@@ -296,10 +304,22 @@ export type Database = {
         Args: { scanned_token: string };
         Returns: ScanResult;
       };
-      /** SECURITY DEFINER (§6). Returns the new token. */
+      /**
+       * SECURITY DEFINER (§6). Returns the caller's LIVE ephemeral token,
+       * minting one only if none has enough life left to be scanned.
+       */
+      mint_qr_token: {
+        Args: Record<string, never>;
+        Returns: MintedQrToken;
+      };
+      /**
+       * SECURITY DEFINER (§6). Kills every outstanding token for the caller and
+       * returns a fresh one — the immediate reset for "my screen was
+       * photographed", since expiry alone takes up to 15 minutes.
+       */
       rotate_qr_token: {
         Args: Record<string, never>;
-        Returns: string;
+        Returns: MintedQrToken;
       };
       /**
        * SECURITY DEFINER (§5.6). Returns false for "not found", "not yours" and

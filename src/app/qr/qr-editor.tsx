@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import jsQR from "jsqr";
 import type QRCodeStyling from "qr-code-styling";
 
-import { rotateToken, saveQrStyle } from "@/lib/qr/actions";
+import { mintQrToken, rotateToken, saveQrStyle } from "@/lib/qr/actions";
 import {
   CORNER_STYLES,
   DOT_STYLES,
@@ -14,7 +14,17 @@ import {
   type QrStyle,
 } from "@/lib/qr/style";
 
-type Props = { initialStyle: QrStyle; connectUrl: string };
+type Props = { initialStyle: QrStyle; connectUrl: string; expiresAt: string };
+
+/**
+ * Refresh this long before the token actually dies (§6).
+ *
+ * The server hands out a token only while it has more than a minute left, so
+ * refreshing at ninety seconds guarantees the displayed code always resolves —
+ * a scanner that lines up the shot just as the code rolls over still succeeds.
+ * Cutting this closer trades a real scan failure for nothing.
+ */
+const REFRESH_MARGIN_MS = 90_000;
 
 type TestState =
   | { kind: "idle" }
@@ -22,7 +32,7 @@ type TestState =
   | { kind: "pass" }
   | { kind: "fail"; reason: string };
 
-export function QrEditor({ initialStyle, connectUrl }: Props) {
+export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
   const holder = useRef<HTMLDivElement>(null);
   // Type-only import: qr-code-styling touches the DOM at construction, so the
   // runtime import has to stay lazy (inside the effect below) — but the type
@@ -34,6 +44,7 @@ export function QrEditor({ initialStyle, connectUrl }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [url, setUrl] = useState(connectUrl);
+  const [expiry, setExpiry] = useState(expiresAt);
 
   const options = useCallback(
     (s: QrStyle) => ({
@@ -73,6 +84,44 @@ export function QrEditor({ initialStyle, connectUrl }: Props) {
       cancelled = true;
     };
   }, [style, options]);
+
+  /**
+   * Keeps the displayed code from going stale (§6).
+   *
+   * The visibilitychange half is not belt-and-braces. Browsers throttle timers
+   * in background tabs and stop them entirely on a locked phone, which is the
+   * ordinary way this screen is used: open your code, lock the screen, hand the
+   * phone over ten minutes later. The timer alone would leave a dead QR on
+   * display with no indication anything was wrong — the scanner would just get
+   * "this code is no longer active".
+   */
+  useEffect(() => {
+    let cancelled = false;
+
+    async function refresh() {
+      const result = await mintQrToken();
+      if (cancelled || !result.ok) return;
+      setUrl(`${window.location.origin}/connect/${result.token}`);
+      setExpiry(result.expiresAt);
+      // The previous pass validated a URL that no longer exists.
+      setTest({ kind: "idle" });
+    }
+
+    const dueIn = new Date(expiry).getTime() - Date.now() - REFRESH_MARGIN_MS;
+    const timer = setTimeout(() => void refresh(), Math.max(0, dueIn));
+
+    function onVisibilityChange() {
+      if (document.visibilityState !== "visible") return;
+      if (new Date(expiry).getTime() - Date.now() <= REFRESH_MARGIN_MS) void refresh();
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [expiry]);
 
   /**
    * The §6 guardrail: render the code, decode it back, and only accept the style
@@ -151,11 +200,12 @@ export function QrEditor({ initialStyle, connectUrl }: Props) {
         setMessage(result.message);
         return;
       }
-      if (result.token) {
-        setUrl(`${window.location.origin}/connect/${result.token}`);
-        setTest({ kind: "idle" });
-        setMessage("New QR code generated. Your existing connections are unaffected.");
-      }
+      setUrl(`${window.location.origin}/connect/${result.token}`);
+      setExpiry(result.expiresAt);
+      setTest({ kind: "idle" });
+      setMessage(
+        "New QR code generated, and every earlier one is now dead — including on your other devices. Your existing connections are unaffected.",
+      );
     });
   }
 

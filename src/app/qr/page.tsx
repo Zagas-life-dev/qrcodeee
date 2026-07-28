@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { connectUrl } from "@/lib/site";
 import { normalizeQrStyle } from "@/lib/qr/style";
+import { mintQrToken } from "@/lib/qr/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
 
 import { QrEditor } from "./qr-editor";
@@ -19,11 +20,17 @@ export default async function QrPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("qr_token, qr_style")
+    .select("qr_style")
     .eq("id", user.id)
     .single();
 
-  if (!profile) {
+  // §6: minted here rather than read off the profile — there is no permanent
+  // token any more. Returns the live one if there is one, so opening this page
+  // twice in a minute shows the same code rather than changing it underneath
+  // someone who is mid-scan.
+  const minted = await mintQrToken();
+
+  if (!profile || !minted.ok) {
     return (
       <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
         <p className="text-sm opacity-70">We couldn&apos;t load your QR code.</p>
@@ -40,6 +47,10 @@ export default async function QrPage() {
             Show this to someone and have them scan it. You&apos;ll both be
             connected straight away — there&apos;s nothing to accept.
           </p>
+          <p className="mt-1 text-sm opacity-70">
+            This code expires every 15 minutes and refreshes itself, so a
+            screenshot of it can&apos;t be used later.
+          </p>
         </div>
         <Link
           href="/preview"
@@ -55,7 +66,8 @@ export default async function QrPage() {
           rather than a broken code (§6). */}
       <QrEditor
         initialStyle={normalizeQrStyle(profile.qr_style)}
-        connectUrl={connectUrl(profile.qr_token)}
+        connectUrl={connectUrl(minted.token)}
+        expiresAt={minted.expiresAt}
       />
 
       {/* §5.2 step 3: Web Push is the ONLY way to reach the scanned person while

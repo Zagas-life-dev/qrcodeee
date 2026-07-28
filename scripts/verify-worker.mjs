@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { connect } from "./db.mjs";
+import { connect, mintToken } from "./db.mjs";
 
 /**
  * §5.4 fan-out worker verification.
@@ -92,7 +92,7 @@ try {
 
   // A scans B, so A is user_a and B is user_b — the slot mapping matters below.
   await users.a.db.rpc("connect_via_scan", {
-    scanned_token: (await sql.query(`select qr_token from profiles where id=$1`, [users.b.id])).rows[0].qr_token,
+    scanned_token: await mintToken(sql, users.b.id),
   });
   await runWorker(users.a.id);
   await runWorker(users.b.id);

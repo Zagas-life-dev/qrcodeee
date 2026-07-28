@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { connect } from "./db.mjs";
+import { connect, mintToken } from "./db.mjs";
 
 /**
  * §8 account deletion and retention verification.
@@ -61,7 +61,7 @@ try {
   users.b = await makeUser("b"); // their connection
 
   await users.a.db.rpc("connect_via_scan", {
-    scanned_token: (await one(`select qr_token from profiles where id=$1`, [users.b.id])).qr_token,
+    scanned_token: await mintToken(sql, users.b.id),
   });
 
   // Give A a full profile so deletion has something to actually remove.
@@ -78,7 +78,8 @@ try {
   await users.a.db.from("blocks").insert({ blocker_id: users.a.id, blocked_id: users.b.id });
   await sql.query(`delete from blocks where blocker_id = $1`, [users.a.id]);
 
-  const oldToken = (await one(`select qr_token from profiles where id=$1`, [users.a.id])).qr_token;
+  // A live token for A, so deletion can be shown to kill outstanding codes.
+  const oldToken = await mintToken(sql, users.a.id);
   const connectionId = (await one(
     `select id from connections where user_a=$1 or user_b=$1`, [users.a.id])).id;
 
@@ -92,13 +93,14 @@ try {
   check("delete_my_account succeeds", !delError, delError?.message);
 
   const profile = await one(
-    `select name, photo_url, bio, qr_token, deleted_at from profiles where id=$1`, [users.a.id]);
+    `select name, photo_url, bio, deleted_at from profiles where id=$1`, [users.a.id]);
   check("the profiles row SURVIVES (it is the placeholder)", Boolean(profile));
   check("deleted_at is set", profile.deleted_at !== null);
   check("name scrubbed to 'Deleted account'", profile.name === "Deleted account", profile.name);
   check("photo cleared", profile.photo_url === null);
   check("bio cleared", profile.bio === null);
-  check("qr_token rotated so printed codes stop resolving", profile.qr_token !== oldToken);
+  check("every outstanding QR token deleted, so no code resolves any more",
+    (await count("qr_tokens", "profile_id", users.a.id)) === 0);
 
   console.log("\n== private data is actually gone ==");
   check("contact_details deleted", (await count("contact_details", "profile_id", users.a.id)) === 0);
@@ -131,11 +133,14 @@ try {
     ((await users.b.db.from("contact_details").select("phone").eq("profile_id", users.a.id)).data ?? []).length === 0);
 
   console.log("\n== a deleted account cannot be scanned or reused ==");
-  const scanDeleted = await users.b.db.rpc("connect_via_scan", { scanned_token: profile.qr_token });
-  check("scanning the deleted account's NEW token is rejected",
-    scanDeleted.data?.status === "invalid_token", scanDeleted.data?.status);
   const scanOld = await users.b.db.rpc("connect_via_scan", { scanned_token: oldToken });
-  check("the old printed token is dead too", scanOld.data?.status === "invalid_token");
+  check("the token that was live at deletion time is dead",
+    scanOld.data?.status === "invalid_token", scanOld.data?.status);
+  // Belt and braces: even if a row somehow survived, deleted_at must stop it.
+  const scanForced = await users.b.db.rpc("connect_via_scan",
+    { scanned_token: await mintToken(sql, users.a.id) });
+  check("a token minted for a deleted account still cannot be scanned",
+    scanForced.data?.status === "invalid_token", scanForced.data?.status);
 
   console.log("\n== auth record is preserved, not cascaded ==");
   const authRow = await one(`select id from auth.users where id=$1`, [users.a.id]);

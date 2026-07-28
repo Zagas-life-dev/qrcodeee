@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { connect } from "./db.mjs";
+import { connect, mintToken } from "./db.mjs";
 
 /**
  * §7 rate limit verification.
@@ -96,10 +96,9 @@ try {
 
   console.log("\n== a valid scan still works for an unthrottled user ==");
   await clearRates(users.b.id);
-  const { rows: tokenRow } = await sql.query(
-    `select qr_token from profiles where id=$1`, [users.a.id]);
+  const liveToken = await mintToken(sql, users.a.id);
   const { data: good } = await users.b.db.rpc("connect_via_scan", {
-    scanned_token: tokenRow[0].qr_token,
+    scanned_token: liveToken,
   });
   check("a legitimate first scan connects", good.status === "new_connection", good.status);
   check("successful scans do NOT record a failed-scan event",
@@ -109,7 +108,7 @@ try {
   check("a valid token accumulates no per-token failure counter",
     (await sql.query(
       `select count(*)::int n from rate_events where action='scan_failed_token' and subject=$1`,
-      [tokenRow[0].qr_token])).rows[0].n === 0);
+      [liveToken])).rows[0].n === 0);
 
   console.log("\n== profile mutation limits ==");
   await clearRates(users.b.id);

@@ -41,3 +41,25 @@ export async function connect() {
 
   throw new Error("unreachable");
 }
+
+/**
+ * Mints a scannable QR token for a profile (§6).
+ *
+ * Scripts used to read `profiles.qr_token`. That column is gone — codes are now
+ * short-lived rows in `qr_tokens`, so every test that needs something to scan
+ * has to mint one.
+ *
+ * Inserts directly rather than calling mint_qr_token(): that RPC derives its
+ * owner from auth.uid(), and these scripts connect as `postgres` with no session
+ * behind them. Pass a negative-looking interval to produce an already-expired
+ * token for the tests that need one.
+ */
+export async function mintToken(sql, profileId, expiresIn = "15 minutes") {
+  const { rows } = await sql.query(
+    `insert into qr_tokens (profile_id, expires_at)
+     values ($1, now() + $2::interval)
+     returning token`,
+    [profileId, expiresIn],
+  );
+  return rows[0].token;
+}

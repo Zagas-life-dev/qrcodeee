@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { connect } from "./db.mjs";
+import { connect, mintToken } from "./db.mjs";
 
 /**
  * §5.1 connect_via_scan verification.
@@ -61,8 +61,10 @@ function uuid(value) {
   return value;
 }
 
-const tokenOf = async (id) =>
-  (await sql.query(`select qr_token from profiles where id = $1`, [uuid(id)])).rows[0].qr_token;
+// §6: there is no permanent token to read any more, so every scan target has
+// to be minted. Each call returns a NEW live token, which is why callers that
+// need to compare before/after rotation hold on to the value.
+const tokenOf = async (id) => mintToken(sql, uuid(id));
 const versionOf = async (id) =>
   (await sql.query(`select profile_version from profiles where id = $1`, [id])).rows[0].profile_version;
 const connRow = async (a, b) =>
@@ -191,13 +193,22 @@ try {
   console.log("\n== token rotation (§6) ==");
   const oldToken = await tokenOf(users.b.id);
   const versionBeforeRotate = await versionOf(users.b.id);
-  const { data: newToken, error: rotErr } = await users.b.db.rpc("rotate_qr_token");
+  // Returns {token, expires_at} now rather than a bare string — rotation mints
+  // a replacement rather than rewriting a column.
+  const { data: rotated, error: rotErr } = await users.b.db.rpc("rotate_qr_token");
+  const newToken = rotated?.token;
   check("owner can rotate their own token", !rotErr && Boolean(newToken), rotErr?.message);
   check("the token actually changed", newToken !== oldToken);
+  check("rotation returns an expiry", Boolean(rotated?.expires_at));
   check("rotation does NOT bump profile_version (nobody's contact card changed)",
     (await versionOf(users.b.id)) === versionBeforeRotate);
   check("the OLD token no longer resolves",
     (await scan(users.c, oldToken)).status === "invalid_token");
+  // §6: the property the whole ephemeral-token change exists for. A screenshot
+  // is a token past its expires_at, and it must be indistinguishable from one
+  // that never existed.
+  check("an EXPIRED token no longer resolves (screenshot replay)",
+    (await scan(users.c, await mintToken(sql, users.b.id, "-1 second"))).status === "invalid_token");
   check("existing connections survive rotation (they key on id, not token)",
     (await connRow(users.a.id, users.b.id))?.disconnected_at === null);
   check("the NEW token works",
@@ -226,7 +237,12 @@ try {
   // 'not authenticated' from its own body, so an error-based check passes even
   // while anon holds EXECUTE — which is exactly how the missing revoke hid.
   const anonClient = createClient(URL, ANON, { auth: { persistSession: false } });
-  for (const sig of ["connect_via_scan(text)", "rotate_qr_token()", "reorder_custom_fields(uuid[])"]) {
+  for (const sig of [
+    "connect_via_scan(text)",
+    "rotate_qr_token()",
+    "mint_qr_token()",
+    "reorder_custom_fields(uuid[])",
+  ]) {
     const { rows } = await sql.query(
       `select has_function_privilege('anon', $1, 'EXECUTE') ok`, [`public.${sig}`]);
     check(`anon holds no EXECUTE grant on ${sig}`, rows[0].ok === false);

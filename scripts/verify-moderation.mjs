@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 
-import { connect } from "./db.mjs";
+import { connect, mintToken } from "./db.mjs";
 
 /**
  * §5.6 disconnect / block / report verification.
@@ -50,8 +50,8 @@ async function makeUser(key) {
   };
 }
 
-const tokenOf = async (id) =>
-  (await sql.query(`select qr_token from profiles where id=$1`, [id])).rows[0].qr_token;
+// §6: tokens are ephemeral rows now, so each call mints a fresh live one.
+const tokenOf = async (id) => mintToken(sql, id);
 const connRow = async (a, b) =>
   (await sql.query(
     `select * from connections where least(user_a,user_b)=least($1::uuid,$2::uuid)
