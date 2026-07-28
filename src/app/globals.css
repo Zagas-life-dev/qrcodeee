@@ -22,5 +22,7 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* The scaffold hardcodes Arial here, which silently defeats the Geist font
+     loaded in layout.tsx. Use the theme variable it actually sets up. */
+  font-family: var(--font-sans), system-ui, sans-serif;
 }

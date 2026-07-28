@@ -1,0 +1,20 @@
+{
+  "name": "QR Connect",
+  "short_name": "QR Connect",
+  "description": "Share your contact details with a single scan.",
+  "start_url": "/qr",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#111827",
+  "theme_color": "#111827",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Scan a code", "url": "/scan" },
+    { "name": "My QR code", "url": "/qr" }
+  ]
+}

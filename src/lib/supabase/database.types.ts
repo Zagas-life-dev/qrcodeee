@@ -36,6 +36,39 @@ export type NotificationType =
   | "accumulated_changes"
   | "new_connection";
 
+/**
+ * The profile payload connect_via_scan returns (§5.1). Contact details are
+ * present because the connection now exists; custom_fields contains only the
+ * public ones — the function filters them by hand, since SECURITY DEFINER means
+ * RLS isn't doing it.
+ */
+export type ScannedProfile = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  bio: string | null;
+  phone: string | null;
+  email: string | null;
+  custom_fields: { label: string; value: string | null }[];
+};
+
+/**
+ * Structured status rather than succeed/fail, so the UI can respond precisely
+ * instead of showing one generic error toast (§5.1).
+ *
+ * Note `blocked` is only ever returned to the person who PLACED the block. The
+ * blocked party gets `invalid_token`, because a distinct response would confirm
+ * that one specific person blocked them — the exact fact the blocks RLS policy
+ * refuses to disclose. §5.5 therefore has no "you have been blocked" toast.
+ */
+export type ScanResult =
+  | { status: "new_connection"; connection_epoch: number; profile: ScannedProfile }
+  | { status: "already_connected"; connection_epoch: number; profile: ScannedProfile }
+  | { status: "self_scan" }
+  | { status: "invalid_token" }
+  | { status: "blocked" }
+  | { status: "unauthenticated" };
+
 export type ReportCategory =
   | "spam"
   | "harassment"
@@ -200,9 +233,95 @@ export type Database = {
         };
         Relationships: [];
       };
+      contact_saves: {
+        Row: {
+          owner_id: string;
+          subject_id: string;
+          saved_at: string;
+        };
+        Insert: {
+          owner_id: string;
+          subject_id: string;
+          saved_at?: string;
+        };
+        Update: { saved_at?: string };
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          profile_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          user_agent: string | null;
+          created_at: string;
+          last_used_at: string | null;
+        };
+        // Registration goes through upsert_push_subscription() so a device that
+        // changes accounts moves rather than conflicting.
+        Insert: never;
+        Update: { last_used_at?: string | null };
+        Relationships: [];
+      };
     };
     Views: Record<never, never>;
-    Functions: Record<never, never>;
+    Functions: {
+      /** SECURITY INVOKER — RLS still scopes this to the caller's own fields. */
+      reorder_custom_fields: {
+        Args: { field_ids: string[] };
+        Returns: undefined;
+      };
+      /** SECURITY DEFINER (§5.1). Returns a structured status, never a bare throw. */
+      connect_via_scan: {
+        Args: { scanned_token: string };
+        Returns: ScanResult;
+      };
+      /** SECURITY DEFINER (§6). Returns the new token. */
+      rotate_qr_token: {
+        Args: Record<string, never>;
+        Returns: string;
+      };
+      /** service_role only (§5.4). Profiles with unprocessed change events. */
+      pending_change_profiles: {
+        Args: { p_limit?: number };
+        Returns: string[];
+      };
+      /**
+       * service_role only (§5.4). ONE batch = ONE transaction, which is what
+       * makes the advisory lock and the batch boundary the same thing.
+       * Loop while `done` is false, passing back `cursor` and `batch_version`.
+       */
+      process_change_batch: {
+        Args: {
+          p_profile_id: string;
+          p_cursor?: string | null;
+          p_batch_version?: number | null;
+          p_limit?: number;
+          p_minor_threshold?: number;
+        };
+        Returns: {
+          locked: boolean;
+          done: boolean;
+          cursor?: string;
+          batch_version?: number;
+          version?: number;
+          notified?: number;
+          connections?: number;
+          events?: number;
+        };
+      };
+      /** SECURITY DEFINER — moves an endpoint between accounts on a shared device. */
+      upsert_push_subscription: {
+        Args: {
+          p_endpoint: string;
+          p_p256dh: string;
+          p_auth: string;
+          p_user_agent?: string | null;
+        };
+        Returns: undefined;
+      };
+    };
     Enums: Record<never, never>;
     CompositeTypes: Record<never, never>;
   };

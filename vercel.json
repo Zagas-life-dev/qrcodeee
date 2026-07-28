@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "crons": [
+    {
+      "comment": "§5.4 fan-out. The Database Webhook on profile_change_events is the low-latency path; this is the safety net that catches anything it dropped — a crashed run deliberately leaves events unprocessed for the next pass. Minute-level crons need a Vercel plan that allows them; on Hobby this falls back to daily and the webhook carries delivery.",
+      "path": "/api/worker/notifications",
+      "schedule": "* * * * *"
+    }
+  ]
+}
