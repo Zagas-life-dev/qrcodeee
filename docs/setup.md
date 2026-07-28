@@ -39,6 +39,36 @@ Three things differ from the direct string and all three will bite:
 
 Only `scripts/` uses this. The app always goes through PostgREST so RLS applies.
 
+### Deploying: `NEXT_PUBLIC_*` is a build input, not a runtime one
+
+`.env.local` covers local dev only. On Vercel the same values go in **Settings →
+Environment Variables**, and the three below must exist **on the Production
+environment before the build runs**:
+
+```
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+NEXT_PUBLIC_SITE_URL      # https://<your-vercel-domain>, no trailing slash
+```
+
+Next inlines `NEXT_PUBLIC_*` into the bundle at `next build` rather than reading
+it from `process.env` at request time. Two consequences that both look like
+application bugs:
+
+- Adding a variable in the dashboard does nothing to the deployment already
+  serving traffic. **Redeploy.**
+- A variable scoped only to Preview/Development is *absent* in Production, even
+  though the dashboard shows it right there in the list.
+
+`next.config.ts` fails the build if any of the three is missing, so this surfaces
+as a red deploy naming the variable. It used to surface as a 500 with nothing but
+a digest: `NEXT_PUBLIC_SITE_URL` is read by `siteUrl()`, which only runs when
+someone clicks *Continue with Google* (§5.1) or loads their QR (§6) — so the site
+came up fine and only sign-in was dead.
+
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` is checked too but only warns: without it push
+reports itself unsupported and the rest of the app is unaffected.
+
 ## 2. Apply the migrations
 
 `npm run db:migrate` — applies pending files in filename order, one transaction
@@ -92,6 +122,18 @@ https://<your-vercel-domain>/auth/callback
 ```
 
 Missing entries surface as a redirect to `/auth/auth-code-error`.
+
+### Telling the Google sign-in failures apart
+
+They fail at different points in the round trip, which is the fastest way to
+narrow it down:
+
+| Symptom | Cause |
+|---|---|
+| Back on `/login`, "We couldn't start the Google sign-in" | Never reached Google. Search the Vercel runtime logs for `oauth_start_failed` — the `reason` field names it. |
+| Google's own screen says `redirect_uri_mismatch` | Google Cloud Console is missing `https://<ref>.supabase.co/auth/v1/callback`. |
+| Returns to `/auth/auth-code-error` | Supabase **Redirect URLs** is missing this origin's `/auth/callback`, or the code was already used. |
+| Lands on `localhost` after consent | `NEXT_PUBLIC_SITE_URL` was built with the dev value. |
 
 ## 4. Database types
 
