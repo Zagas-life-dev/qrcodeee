@@ -7,6 +7,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 
 import { createClient } from "@/lib/supabase/client";
 import { notificationText } from "@/lib/notifications/display";
+import { markRead } from "@/lib/notifications/actions";
 import { saveContact } from "@/lib/contacts/save-contact";
 import type { NotificationType } from "@/lib/supabase/database.types";
 
@@ -94,6 +95,10 @@ export function ConnectionListener({ userId }: { userId: string }) {
         //   not deleted     §8: no card worth opening.
         if (live && row.type === "new_connection" && !profile?.deleted_at) {
           const target = `/connections/${row.source_profile_id}`;
+          // Delivered as forcefully as this app can deliver anything, so it is
+          // spent. Without this a refresh inside FRESH_MS re-fires the redirect,
+          // and every refresh after it re-raises the toast.
+          void markRead([row.id]);
           // Guards the mutual-scan case: if both people scan at once, whoever is
           // already on the other's page must not be bounced through it again and
           // lose the save they are mid-way through.
@@ -111,19 +116,34 @@ export function ConnectionListener({ userId }: { userId: string }) {
         // can open straight from here without the intermediate page.
         const offerSave = row.type === "new_connection" && !profile?.deleted_at;
 
+        // `seen` only survives until the page reloads, and the reconcile pass
+        // selects on `read_at is null` — so without marking, a dismissed toast
+        // comes back on every single refresh until the user happens to visit
+        // /notifications. A toast that has run its course has been delivered,
+        // whether it was dismissed, acted on, or simply timed out, which is the
+        // same standard §5.5 applies when opening the list marks what's on
+        // screen read. Repeat calls are no-ops: markRead filters on unread.
+        const spend = () => void markRead([row.id]);
+
         toast(copy.title, {
           description: copy.body,
           duration: 10000,
+          onDismiss: spend,
+          onAutoClose: spend,
           action: offerSave
             ? {
                 label: "Save contact",
                 onClick: () => {
+                  spend();
                   void saveContact(row.source_profile_id, name);
                 },
               }
             : {
                 label: "Notifications",
-                onClick: () => router.push("/notifications"),
+                onClick: () => {
+                  spend();
+                  router.push("/notifications");
+                },
               },
         });
         router.refresh();
