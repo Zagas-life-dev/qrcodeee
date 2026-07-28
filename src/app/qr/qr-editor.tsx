@@ -19,10 +19,15 @@ type Props = { initialStyle: QrStyle; connectUrl: string; expiresAt: string };
 /**
  * Refresh this long before the token actually dies (§6).
  *
- * The server hands out a token only while it has more than a minute left, so
- * refreshing at ninety seconds guarantees the displayed code always resolves —
- * a scanner that lines up the shot just as the code rolls over still succeeds.
- * Cutting this closer trades a real scan failure for nothing.
+ * MUST STAY BELOW mint_qr_token's reuse floor, which is two minutes. The server
+ * reuses a token that still has more than that left, so refreshing any later
+ * than its floor returns the SAME token: setExpiry() below would be a no-op, the
+ * effect would never re-run, no new timer would be scheduled, and the code would
+ * sit here until it quietly expired. Nothing on this screen would look wrong —
+ * scanners would just start getting "this code is no longer active".
+ *
+ * Ninety seconds also means a scanner lining up the shot just as the code rolls
+ * over still succeeds. Cutting it closer trades a real scan failure for nothing.
  */
 const REFRESH_MARGIN_MS = 90_000;
 
