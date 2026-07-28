@@ -17,10 +17,20 @@ import { siteUrl } from "@/lib/site";
  * after someone updates their number gets the new one.
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ profileId: string }> },
 ) {
   const { profileId } = await params;
+  const { searchParams } = new URL(request.url);
+
+  // `inline` is what turns a DOWNLOAD into the OS contact screen. iOS Safari
+  // renders an inline text/vcard as its Add Contact sheet — the same bytes sent
+  // as an attachment are just a file in Downloads. Attachment stays the default
+  // because on desktop the download IS the right behaviour.
+  const inline = searchParams.get("disposition") === "inline";
+  // Android can't use the vCard for a prefilled editor (see save-contact.ts), so
+  // it needs the same authorised fields as data to build an intent URL from.
+  const asJson = searchParams.get("format") === "json";
 
   const supabase = await createClient();
   const {
@@ -64,6 +74,27 @@ export async function GET(
     return NextResponse.json({ error: "This account was deleted." }, { status: 410 });
   }
 
+  // Recorded before the JSON branch returns, so the Android path counts as a
+  // handover too (§5.7) — it hands over exactly the same details.
+  await supabase
+    .from("contact_saves")
+    .upsert(
+      { owner_id: user.id, subject_id: profileId, saved_at: new Date().toISOString() },
+      { onConflict: "owner_id,subject_id" },
+    );
+
+  if (asJson) {
+    return NextResponse.json(
+      {
+        name: profile.name,
+        phone: contact?.phone ?? null,
+        email: contact?.email ?? null,
+        bio: profile.bio,
+      },
+      { headers: { "Cache-Control": "no-store, private" } },
+    );
+  }
+
   const vcard = buildVCard({
     name: profile.name,
     phone: contact?.phone ?? null,
@@ -74,20 +105,10 @@ export async function GET(
     sourceUrl: siteUrl(),
   });
 
-  // Records that the card was handed over (§5.7). Not awaited into the response
-  // path beyond this — a bookkeeping failure must not cost the user their
-  // contact card. Note this is "downloaded", not "saved": see the migration.
-  await supabase
-    .from("contact_saves")
-    .upsert(
-      { owner_id: user.id, subject_id: profileId, saved_at: new Date().toISOString() },
-      { onConflict: "owner_id,subject_id" },
-    );
-
   return new NextResponse(vcard, {
     headers: {
       "Content-Type": "text/vcard; charset=utf-8",
-      "Content-Disposition": `attachment; filename="${vcardFilename(profile.name)}"`,
+      "Content-Disposition": `${inline ? "inline" : "attachment"}; filename="${vcardFilename(profile.name)}"`,
       // Live pointer: never let a CDN or the browser serve a stale card.
       "Cache-Control": "no-store, private",
     },
