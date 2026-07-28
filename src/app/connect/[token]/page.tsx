@@ -75,7 +75,11 @@ export default async function ConnectPage({
         await sendPushToProfile(scannedId, {
           title: "New connection",
           body: `${me?.name ?? "Someone"} connected with you. Save their contact so you don't lose it.`,
-          url: `${siteUrl()}/connections`,
+          // §5.2 step 3: "opening it lands them on the same save-contact
+          // prompt". A bare /connections drops them on a list and makes them
+          // find the right row — the ?save= param carries which person the
+          // notification was actually about.
+          url: `${siteUrl()}/connections?save=${encodeURIComponent(user.id)}`,
           // Per connection AND epoch: duplicates collapse, but a genuine
           // reconnect (§5.1) still surfaces as a new notification.
           tag: `connection:${scannedId}:${epoch}`,

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { createClient } from "@/lib/supabase/client";
 import { notificationText } from "@/lib/notifications/display";
+import { saveContact } from "@/lib/contacts/save-contact";
 import type { NotificationType } from "@/lib/supabase/database.types";
 
 /**
@@ -53,14 +54,30 @@ export function ConnectionListener({ userId }: { userId: string }) {
         // stale text, and the name is whatever it is right now (§1).
         const copy = notificationText(row.type as NotificationType, name);
 
+        // §5.2 step 2 asks for "you connected with [name] — save their contact?",
+        // so the action IS the save, not a link to a page with a save button on
+        // it. The scanned person took no action to get here; making them navigate
+        // to finish the one thing the notification is about loses most of them.
+        //
+        // A toast action click carries transient activation, which is exactly
+        // what navigator.share() requires — this is the earliest point in the
+        // scanned person's flow where the OS prompt can legally be opened.
+        const offerSave = row.type === "new_connection" && !profile?.deleted_at;
+
         toast(copy.title, {
           description: copy.body,
           duration: 10000,
-          action: {
-            label: row.type === "new_connection" ? "View" : "Notifications",
-            onClick: () =>
-              router.push(row.type === "new_connection" ? "/connections" : "/notifications"),
-          },
+          action: offerSave
+            ? {
+                label: "Save contact",
+                onClick: () => {
+                  void saveContact(row.source_profile_id, name);
+                },
+              }
+            : {
+                label: "Notifications",
+                onClick: () => router.push("/notifications"),
+              },
         });
         router.refresh();
       })();

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { connectUrl } from "@/lib/site";
 import { normalizeQrStyle } from "@/lib/qr/style";
+import { EnableNotifications } from "@/components/enable-notifications";
 
 import { QrEditor } from "./qr-editor";
 
@@ -56,6 +57,18 @@ export default async function QrPage() {
         initialStyle={normalizeQrStyle(profile.qr_style)}
         connectUrl={connectUrl(profile.qr_token)}
       />
+
+      {/* §5.2 step 3: Web Push is the ONLY way to reach the scanned person while
+          their app is closed — and the scanned person, by definition, is on this
+          page rather than the connect page. Asking only after a connection (the
+          connect page) reaches the scanner and no one else, which leaves the
+          person whose code gets scanned permanently unsubscribed and silent. */}
+      <div className="mt-8">
+        <EnableNotifications
+          title="Get notified the moment someone scans your code"
+          body="You won't be looking at your phone when it happens — they scan, and you find out straight away with a one-tap prompt to save their contact."
+        />
+      </div>
     </main>
   );
 }
