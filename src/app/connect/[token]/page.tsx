@@ -8,7 +8,7 @@ import { siteUrl } from "@/lib/site";
 import type { ScanResult } from "@/lib/supabase/database.types";
 import { ConnectedProfileCard } from "@/components/connected-profile-card";
 import { EnableNotifications } from "@/components/enable-notifications";
-import { SaveContactButton } from "@/components/save-contact-button";
+import { AutoSaveContact } from "@/components/auto-save-contact";
 
 export const metadata = { title: "Connecting · QR Connect" };
 
@@ -154,8 +154,11 @@ export default async function ConnectPage({
             <ConnectedProfileCard profile={result.profile} />
           </div>
 
+          {/* The scanner's half of the mutual save. The scanned person is being
+              redirected to the mirror of this page at the same moment (see
+              connection-listener.tsx), so one scan opens both address books. */}
           <div className="mt-6">
-            <SaveContactButton
+            <AutoSaveContact
               profileId={result.profile.id}
               name={result.profile.name}
             />
