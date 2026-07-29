@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/qr", label: "My code" },
   { href: "/scan", label: "Scan" },
   { href: "/connections", label: "Connections" },
+  { href: "/analytics", label: "Analytics" },
   { href: "/profile", label: "Profile" },
 ];
 

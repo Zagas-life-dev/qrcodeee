@@ -51,6 +51,29 @@ export type NotificationType =
  */
 export type MintedQrToken = { token: string; expires_at: string };
 
+/**
+ * Everything the analytics page renders, in one round trip.
+ *
+ * Note what is NOT here: any count of who saved the CALLER's card.
+ * contact_saves is owner-only under a policy that calls the inverse "a
+ * surveillance signal nobody consented to at scan time", and an aggregate is
+ * that same signal at lower resolution — with two connections, "1 person saved
+ * your card" names them. `saved` is what the caller saved, never the reverse.
+ */
+export type NetworkingStats = {
+  active: number;
+  new_30d: number;
+  new_prev_30d: number;
+  scans_30d: number;
+  scans_total: number;
+  saved: number;
+  unsaved: number;
+  /** Connections whose profile changed after the caller last downloaded it. */
+  stale: number;
+  first_connection_at: string | null;
+  weeks: { week_start: string; connections: number; scans: number }[];
+};
+
 export type ScannedProfile = {
   id: string;
   name: string;
@@ -320,6 +343,15 @@ export type Database = {
       rotate_qr_token: {
         Args: Record<string, never>;
         Returns: MintedQrToken;
+      };
+      /**
+       * SECURITY DEFINER (§9). Reads qr_tokens, which is deny-all to clients, so
+       * every statement inside is scoped to auth.uid() by hand — there is no RLS
+       * underneath it to catch a mistake.
+       */
+      networking_stats: {
+        Args: Record<string, never>;
+        Returns: NetworkingStats;
       };
       /**
        * SECURITY DEFINER (§5.6). Returns false for "not found", "not yours" and

@@ -3,6 +3,19 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+
+  /* Chart series steps, validated against THIS app's surfaces (#ffffff light,
+     #0a0a0a dark) rather than a reference surface — contrast only means
+     something against the background a chart actually renders on. Both clear
+     3:1 in both modes, and the pair clears the CVD and normal-vision floors
+     (worst ΔE 24.7 protan / 33.6 normal in light).
+
+     One measure per chart, so these two never share a plot; they are separate
+     hues so two charts side by side don't read as one series. */
+  --chart-blue: #2a78d6;
+  --chart-orange: #eb6834;
+  /* A week with no activity: a baseline stub, not a series color. */
+  --chart-empty: rgba(11, 11, 11, 0.16);
 }
 
 @theme inline {
@@ -16,6 +29,11 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+
+    /* Selected for the dark surface, not flipped from the light steps. */
+    --chart-blue: #3987e5;
+    --chart-orange: #d95926;
+    --chart-empty: rgba(255, 255, 255, 0.18);
   }
 }
 
