@@ -6,20 +6,24 @@ import { usePathname } from "next/navigation";
 import { ChartIcon, PeopleIcon, PersonIcon, QrIcon, ScanIcon } from "./nav-icons";
 
 /**
- * The phone-sized navigation (`sm:hidden` — the header carries these same
- * destinations on wider screens).
+ * The phone-sized navigation, as a floating dock (`sm:hidden` — the header
+ * carries these same destinations on wider screens).
  *
- * Bottom-anchored because that is where thumbs are. The old top strip put five
- * destinations in a horizontally-scrolling row at the far end of a one-handed
- * reach, where the last two were both hard to hit and easy to miss entirely.
+ * A detached pill rather than a full-width bar welded to the bottom edge, per
+ * docs/images (1).jpg. Brutalism survives the shape change intact: the dock
+ * keeps the 2px ink outline and the hard zero-blur offset shadow, and the
+ * reference's soft drop shadow is the one thing deliberately NOT carried over.
+ * A pill is just a radius; the language lives in the border and the offset.
  *
- * Scan is the raised centre action rather than a fifth equal tab: it is the one
- * thing this product exists to do, and it is the only destination someone opens
- * while standing in front of another person.
+ * Floating buys something real beyond looks — the page scrolls visibly past it
+ * on both sides, so it reads as sitting above the content rather than cropping
+ * it, and the rounded ends stop the bar from looking like a torn-off edge on a
+ * device with no home indicator.
  */
 const TABS = [
   { href: "/qr", label: "My code", Icon: QrIcon },
   { href: "/connections", label: "People", Icon: PeopleIcon },
+  { href: "/scan", label: "Scan", Icon: ScanIcon, primary: true },
   { href: "/analytics", label: "Stats", Icon: ChartIcon },
   { href: "/profile", label: "Profile", Icon: PersonIcon },
 ] as const;
@@ -28,43 +32,22 @@ export function TabBar() {
   const pathname = usePathname();
 
   return (
-    <nav
-      aria-label="Main"
-      // viewTransitionName pins this so it doesn't travel with the page content
-      // — see the ::view-transition rules in globals.css.
+    // The wrapper spans the viewport so the dock can centre in it, but takes no
+    // pointer events — without that, the transparent gutters either side of the
+    // pill would swallow taps meant for the content scrolling underneath.
+    <div
       style={{ viewTransitionName: "shell-tabs" }}
-      className="fixed inset-x-0 bottom-0 z-40 border-t-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] sm:hidden"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden"
     >
-      <ul className="mx-auto flex w-full max-w-lg items-stretch justify-between px-2">
-        {TABS.slice(0, 2).map((tab) => (
+      <nav
+        aria-label="Main"
+        className="pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-between gap-1 rounded-full border-2 border-ink bg-paper px-2.5 py-2.5 shadow-brutal"
+      >
+        {TABS.map((tab) => (
           <Tab key={tab.href} {...tab} pathname={pathname} />
         ))}
-
-        <li className="flex flex-1 justify-center">
-          <Link
-            href="/scan"
-            aria-label="Scan a code"
-            aria-current={isActive(pathname, "/scan") ? "page" : undefined}
-            className="group flex flex-col items-center gap-1 pt-1 pb-2"
-          >
-            {/* Breaks the bar's top edge on purpose. A raised action that stays
-                inside its container is just a slightly bigger tab. */}
-            <span
-              className={`-mt-7 flex size-14 items-center justify-center rounded-full border-2 border-ink shadow-brutal nb-press-raise ${
-                isActive(pathname, "/scan") ? "bg-ink text-paper" : "bg-lemon text-ink"
-              }`}
-            >
-              <ScanIcon className="size-7" />
-            </span>
-            <span className="text-[10px] font-bold">Scan</span>
-          </Link>
-        </li>
-
-        {TABS.slice(2).map((tab) => (
-          <Tab key={tab.href} {...tab} pathname={pathname} />
-        ))}
-      </ul>
-    </nav>
+      </nav>
+    </div>
   );
 }
 
@@ -72,39 +55,42 @@ function Tab({
   href,
   label,
   Icon,
+  primary,
   pathname,
 }: {
   href: string;
   label: string;
   Icon: (props: { className?: string }) => React.ReactElement;
+  primary?: boolean;
   pathname: string;
 }) {
   const active = isActive(pathname, href);
 
+  /**
+   * Scan is the solid centre action, per the reference. It is ink-filled rather
+   * than lemon precisely BECAUSE lemon is what marks the current page — the two
+   * would otherwise be the same circle, and an unvisited Scan would read as
+   * "you are here". Ink says primary, lemon says current, and when Scan is both
+   * it takes lemon like every other tab.
+   */
+  const fill = active
+    ? "border-ink bg-lemon text-ink"
+    : primary
+      ? "border-ink bg-ink text-paper"
+      : "border-transparent text-ink";
+
   return (
-    <li className="flex flex-1">
-      <Link
-        href={href}
-        aria-current={active ? "page" : undefined}
-        // min-h-14 keeps every tab at or above the 44px touch minimum even
-        // though the glyph and its label together are shorter than that.
-        className="flex min-h-14 w-full flex-col items-center gap-1 rounded-brutal px-1 pt-2 pb-2"
-      >
-        {/* The active pill is a filled, outlined shape rather than a colour
-            change: on a yellow canvas a tinted glyph at this size is nearly
-            impossible to pick out, and the fill also survives greyscale. */}
-        <span
-          className={`flex h-7 w-11 items-center justify-center rounded-full border-2 transition-colors duration-[--dur-fast] ${
-            active ? "border-ink bg-lemon" : "border-transparent"
-          }`}
-        >
-          <Icon className="size-5" />
-        </span>
-        <span className={`text-[10px] ${active ? "font-bold" : "font-medium"}`}>
-          {label}
-        </span>
-      </Link>
-    </li>
+    <Link
+      href={href}
+      aria-current={active ? "page" : undefined}
+      // size-11 is the 44px touch minimum, and the icons are the only labels in
+      // the dock — so the accessible name comes from the sr-only span rather
+      // than from an aria-label that would leave the link nameless with CSS off.
+      className={`flex size-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors duration-[--dur-fast] ${fill}`}
+    >
+      <Icon className={primary ? "size-6" : "size-5"} />
+      <span className="sr-only">{label}</span>
+    </Link>
   );
 }
 

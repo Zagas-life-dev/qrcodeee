@@ -1,0 +1,498 @@
+/**
+ * ProfileCard — React Bits structure, neo-brutalist skin.
+ *
+ * The class names, layer order and custom-property contract are upstream's, so
+ * the tilt engine in profile-card.tsx drives this unchanged: it still writes
+ * --pointer-x/y, --rotate-x/y, --background-x/y and --pointer-from-* every
+ * frame, and this stylesheet reads exactly those. What changed is everything
+ * those values are spent ON.
+ *
+ * Upstream is dark glassmorphism — black card, rainbow foil, backdrop blur,
+ * soft radial glow, gradient-clipped text. This app's language is the opposite
+ * of all five. So:
+ *
+ *   black card          -> a flat accent fill
+ *   rainbow sunpillars  -> hard-edged diagonal bands from the app's palette
+ *   blurred drop shadow -> the hard zero-blur offset, which now SHIFTS with the
+ *                          pointer (upstream's shadow already tracked the
+ *                          pointer; only its blur had to go)
+ *   backdrop-filter     -> flat paper with an ink outline
+ *   gradient text       -> solid ink in the display face
+ *
+ * The tilt, the glare sweep and the parallax all survive. It is the same card,
+ * lit differently.
+ */
+.pc-card-wrapper {
+  /* Written by the tilt engine; the fallbacks are what a no-JS render shows. */
+  --pointer-x: 50%;
+  --pointer-y: 50%;
+  --pointer-from-center: 0;
+  --pointer-from-top: 0.5;
+  --pointer-from-left: 0.5;
+  --card-opacity: 0;
+  --rotate-x: 0deg;
+  --rotate-y: 0deg;
+  --background-x: 50%;
+  --background-y: 50%;
+  --grain: none;
+  --icon: none;
+
+  /* Local aliases so the card still renders if it is ever lifted out of this
+     app, where the theme tokens wouldn't exist. */
+  --pc-ink: var(--color-ink, #0b0b0b);
+  --pc-paper: var(--color-paper, #fffdf7);
+  --pc-fill: var(--color-lemon, #ffc93c);
+  --pc-band-1: var(--color-bubble, #ff8fc7);
+  --pc-band-2: var(--color-lime, #a8e86a);
+  --pc-band-3: var(--color-sky, #86d8f7);
+  --pc-band-4: var(--color-lilac, #bca6f7);
+
+  --card-radius: 22px;
+
+  perspective: 700px;
+  transform: translate3d(0, 0, 0.1px);
+  position: relative;
+  /**
+   * Upstream sets `touch-action: none`, which tells the browser this element
+   * handles every gesture — so a finger landing anywhere on the card cannot
+   * scroll the page, and on a phone this card is most of the viewport. It
+   * exists upstream to stop scroll fighting the tilt, but the tilt is
+   * pointer-driven and mobile tilt reads deviceorientation; neither needs the
+   * browser to surrender vertical panning.
+   */
+  touch-action: pan-y;
+}
+
+/* Upstream's blurred radial glow has no place in a language with no blur in it.
+   The depth is the offset shadow on .pc-card instead. */
+.pc-behind {
+  display: none;
+}
+
+.pc-card-wrapper:hover,
+.pc-card-wrapper.active {
+  --card-opacity: 1;
+}
+
+.pc-card {
+  height: 70svh;
+  max-height: 460px;
+  display: grid;
+  aspect-ratio: 0.718;
+  border-radius: var(--card-radius);
+  position: relative;
+  border: 3px solid var(--pc-ink);
+  background: var(--pc-fill);
+  overflow: hidden;
+  backface-visibility: hidden;
+  transform: translateZ(0) rotateX(0deg) rotateY(0deg);
+  transition:
+    transform 1s ease,
+    box-shadow 1s ease;
+  /**
+   * The offset tracks the pointer, so the card reads as lit from wherever the
+   * cursor is — upstream's idea, kept, with the 20px blur removed. Base 7px,
+   * travelling +/-5px.
+   */
+  box-shadow: calc(7px - (var(--pointer-from-left) - 0.5) * 10px)
+    calc(7px - (var(--pointer-from-top) - 0.5) * 10px) 0 var(--pc-ink);
+}
+
+.pc-card:hover,
+.pc-card.active {
+  transition: none;
+  transform: translateZ(0) rotateX(var(--rotate-y)) rotateY(var(--rotate-x));
+}
+
+.pc-card-shell.entering .pc-card {
+  transition:
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+
+.pc-card-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.pc-card * {
+  display: grid;
+  grid-area: 1/-1;
+  border-radius: 0;
+  pointer-events: none;
+}
+
+.pc-inside {
+  inset: 0;
+  position: absolute;
+  background: var(--pc-fill);
+  transform: none;
+}
+
+/**
+ * The foil, rebuilt in hard edges.
+ *
+ * Four diagonal bands from the app's accent palette with zero-width colour
+ * stops, so every boundary is a crisp line rather than a blend. The radial mask
+ * is what makes it read as a sheen instead of a pattern: the bands only exist
+ * near the pointer and fade out with distance, which is the same information
+ * upstream's holographic sweep carried, drawn in this language.
+ */
+.pc-shine {
+  z-index: 3;
+  overflow: hidden;
+  transform: translate3d(0, 0, 1px);
+  background-image: repeating-linear-gradient(
+    115deg,
+    var(--pc-band-1) 0 22px,
+    var(--pc-band-2) 22px 44px,
+    var(--pc-band-3) 44px 66px,
+    var(--pc-band-4) 66px 88px
+  );
+  background-size: 200% 200%;
+  background-position: var(--background-x) var(--background-y);
+  /**
+   * Hard-edged stops alone weren't enough: four light accents laid over a light
+   * fill at partial opacity average toward the fill, and the boundaries stop
+   * reading as edges. `multiply` keeps each band a distinct hue against the
+   * lemon instead of tinting toward it, which is what puts the edges back.
+   */
+  mix-blend-mode: multiply;
+  /* A hard mask stop rather than a soft falloff — the sheen has a boundary in
+     this language, the same as everything else. */
+  mask-image: radial-gradient(
+    circle at var(--pointer-x) var(--pointer-y),
+    #000 0%,
+    #000 42%,
+    transparent 62%
+  );
+  opacity: 0.5;
+  transition: opacity 0.5s ease;
+}
+
+.pc-card:hover .pc-shine,
+.pc-card.active .pc-shine {
+  opacity: 0.95;
+}
+
+/* Upstream layers two more foil passes through ::before/::after. One band set
+   is enough once the edges are hard — a second would read as noise, not depth. */
+.pc-shine::before,
+.pc-shine::after {
+  content: none;
+}
+
+/**
+ * The glare: a single hard-edged diagonal sweep that slides across the card as
+ * the pointer moves. Upstream's is a soft radial overlay in `overlay` blend
+ * mode; this is the same gesture with the gradient collapsed to two stops.
+ */
+.pc-glare {
+  z-index: 4;
+  overflow: hidden;
+  transform: translate3d(0, 0, 1.1px);
+  background-image: linear-gradient(
+    115deg,
+    transparent 0 calc(var(--background-x) - 14%),
+    rgba(255, 255, 255, 0.72) calc(var(--background-x) - 14%) calc(var(--background-x) - 4%),
+    transparent calc(var(--background-x) - 4%) 100%
+  );
+  opacity: calc(0.25 + var(--pointer-from-center) * 0.45);
+  mix-blend-mode: soft-light;
+}
+
+.pc-avatar-content {
+  overflow: visible;
+  transform: translateZ(2px);
+  backface-visibility: hidden;
+}
+
+.pc-avatar-content .avatar {
+  width: 100%;
+  position: absolute;
+  left: 50%;
+  transform-origin: 50% 100%;
+  /* The parallax, unchanged from upstream — it is motion, not decoration, and
+     it is what sells the card as having depth. */
+  transform: translateX(calc(-50% + (var(--pointer-from-left) - 0.5) * 6px)) translateZ(0)
+    scaleY(calc(1 + (var(--pointer-from-top) - 0.5) * 0.02)) scaleX(calc(1 + (var(--pointer-from-left) - 0.5) * 0.01));
+  bottom: -1px;
+  backface-visibility: hidden;
+  will-change: transform;
+  transition: transform 120ms ease-out;
+}
+
+/**
+ * The stand-in for a profile with no photo. Upstream assumes an avatar always
+ * resolves and hides a broken <img>, which here would leave the card's lower
+ * half empty — photo_url is nullable and plenty of real profiles never set one.
+ */
+.pc-avatar-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--font-display, inherit);
+  /* vw rather than cqw: container units would need a container-type on .pc-card,
+     and that establishes a containment context the 3D transforms sit inside. */
+  font-size: clamp(4.5rem, 22vw, 9rem);
+  line-height: 1;
+  color: var(--pc-ink);
+  opacity: 0.13;
+  user-select: none;
+}
+
+.pc-avatar-content::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Paper panel with an ink outline and a hard offset — the same recipe as every
+   other card in the app, replacing upstream's blurred glass. */
+.pc-user-info {
+  position: absolute;
+  --ui-inset: 14px;
+  bottom: var(--ui-inset);
+  left: var(--ui-inset);
+  right: var(--ui-inset);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--pc-paper);
+  border: 2px solid var(--pc-ink);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--pc-ink);
+  padding: 8px 10px;
+  pointer-events: auto;
+}
+
+.pc-user-details {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pc-mini-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  overflow: hidden;
+  border: 2px solid var(--pc-ink);
+  flex-shrink: 0;
+}
+
+.pc-mini-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 999px;
+}
+
+.pc-mini-avatar .pc-mini-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-display, inherit);
+  font-size: 16px;
+  color: var(--pc-ink);
+  background: var(--pc-band-4);
+}
+
+.pc-user-text {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.pc-handle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pc-ink);
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pc-status {
+  font-size: 12px;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--pc-ink) 70%, transparent);
+  line-height: 1.1;
+}
+
+.pc-contact-btn {
+  border: 2px solid var(--pc-ink);
+  border-radius: 999px;
+  background: var(--pc-band-2);
+  padding: 0 16px;
+  /* 44px, the touch minimum this app holds every other control to. Upstream's
+     12px/16px padding lands around 38px. */
+  min-height: 44px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--pc-ink);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 2px 2px 0 var(--pc-ink);
+  transition:
+    translate 120ms ease,
+    box-shadow 120ms ease;
+}
+
+@media (hover: hover) {
+  .pc-contact-btn:hover {
+    translate: 1px 1px;
+    box-shadow: 1px 1px 0 var(--pc-ink);
+  }
+}
+
+.pc-contact-btn:active {
+  translate: 2px 2px;
+  box-shadow: 0 0 0 var(--pc-ink);
+}
+
+.pc-content:not(.pc-avatar-content) {
+  max-height: 100%;
+  overflow: hidden;
+  text-align: center;
+  position: relative;
+  /* Text parallax, unchanged. */
+  transform: translate3d(
+    calc(var(--pointer-from-left) * -6px + 3px),
+    calc(var(--pointer-from-top) * -6px + 3px),
+    0.1px
+  );
+  z-index: 6;
+}
+
+.pc-details {
+  width: 100%;
+  position: absolute;
+  top: 1.6em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35em;
+  padding: 0 1em;
+}
+
+/* Solid ink in the display face. The gradient text-clip upstream uses is
+   invisible against a light fill and is a soft-depth idiom besides. */
+.pc-details h3 {
+  margin: 0;
+  font-family: var(--font-display, inherit);
+  font-weight: 400;
+  font-size: min(4.5svh, 2.4em);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--pc-ink);
+  overflow-wrap: anywhere;
+}
+
+.pc-details p {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: color-mix(in oklab, var(--pc-ink) 78%, transparent);
+  /* Upstream is `white-space: nowrap; width: min-content` for a two-word job
+     title. This slot carries a bio of up to 500 characters. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 480px) {
+  .pc-card {
+    height: 60svh;
+    max-height: 400px;
+  }
+
+  .pc-details {
+    top: 1.3em;
+  }
+
+  .pc-details h3 {
+    font-size: min(4svh, 2em);
+  }
+
+  .pc-details p {
+    font-size: 13px;
+  }
+
+  .pc-user-info {
+    --ui-inset: 11px;
+    padding: 7px 9px;
+  }
+
+  .pc-mini-avatar {
+    width: 34px;
+    height: 34px;
+  }
+
+  .pc-contact-btn {
+    font-size: 11px;
+    padding: 0 13px;
+  }
+}
+
+@media (max-width: 320px) {
+  .pc-card {
+    max-height: 340px;
+  }
+
+  .pc-details h3 {
+    font-size: min(3.4svh, 1.6em);
+  }
+}
+
+/**
+ * Upstream ships no reduced-motion handling.
+ *
+ * The tilt, the glare sweep and the parallax are all continuous motion tracking
+ * the cursor, which is precisely what this query is for. The card keeps its
+ * colour, its bands and its offset shadow — it just holds still. (The JS half
+ * is switched off in the component; these rules cover the CSS the engine would
+ * otherwise still be feeding.)
+ */
+@media (prefers-reduced-motion: reduce) {
+  .pc-card,
+  .pc-card:hover,
+  .pc-card.active {
+    transform: none;
+    transition: none;
+    box-shadow: 7px 7px 0 var(--pc-ink);
+  }
+
+  .pc-avatar-content .avatar {
+    transform: translateX(-50%) translateZ(0);
+    transition: none;
+  }
+
+  .pc-content:not(.pc-avatar-content) {
+    transform: none;
+  }
+
+  .pc-shine {
+    mask-image: none;
+    opacity: 0.32;
+  }
+
+  .pc-glare {
+    display: none;
+  }
+}

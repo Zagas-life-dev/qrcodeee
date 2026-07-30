@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { ActionLink, EmptyState, Notice, Page, PageHeader } from "@/components/page";
 
 import { UnblockButton } from "./unblock-button";
 
@@ -21,22 +21,20 @@ export default async function BlockedPage() {
   const { data: blocked, error } = await supabase.rpc("list_blocked");
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-3xl leading-none tracking-tight">Blocked</h1>
-      <p className="mt-3 text-sm font-medium">
-        Blocking hides you from each other completely and stops either of you
-        reconnecting. Your connection isn&apos;t deleted — unblocking brings it
-        back.
-      </p>
+    <Page>
+      <PageHeader
+        title="Blocked"
+        description="Blocking hides you from each other completely and stops either of you reconnecting. Your connection isn't deleted — unblocking brings it back."
+      />
 
       {error ? (
-        <p className="mt-6 rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+        <Notice tone="error" className="mt-6">
           We couldn&apos;t load your block list.
-        </p>
+        </Notice>
       ) : (blocked ?? []).length === 0 ? (
-        <p className="mt-6 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center text-sm font-bold">
-          You haven&apos;t blocked anyone.
-        </p>
+        <div className="mt-6">
+          <EmptyState>You haven&apos;t blocked anyone.</EmptyState>
+        </div>
       ) : (
         <ul className="mt-6 space-y-3">
           {(blocked ?? []).map((person) => (
@@ -73,12 +71,9 @@ export default async function BlockedPage() {
         </ul>
       )}
 
-      <Link
-        href="/connections"
-        className="mt-8 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-      >
+      <ActionLink href="/connections" className="mt-8">
         Your connections
-      </Link>
-    </main>
+      </ActionLink>
+    </Page>
   );
 }

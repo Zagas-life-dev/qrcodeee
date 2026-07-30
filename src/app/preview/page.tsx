@@ -1,9 +1,9 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import type { ScannedProfile } from "@/lib/supabase/database.types";
 import { ConnectedProfileCard } from "@/components/connected-profile-card";
+import { ActionLink, Notice, Page, PageHeader, Section } from "@/components/page";
 
 export const metadata = { title: "How others see you · QR Connect" };
 
@@ -40,11 +40,9 @@ export default async function PreviewPage() {
 
   if (!profile) {
     return (
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
-        <p className="rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
-          We couldn&apos;t load your profile.
-        </p>
-      </main>
+      <Page>
+        <Notice tone="error">We couldn&apos;t load your profile.</Notice>
+      </Page>
     );
   }
 
@@ -73,17 +71,14 @@ export default async function PreviewPage() {
   ].filter(Boolean) as string[];
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-3xl leading-none tracking-tight">
-        How others see you
-      </h1>
-      <p className="mt-3 text-sm font-medium">
-        This is exactly what someone gets after scanning your code — the same
-        screen they see, built from the same data.
-      </p>
+    <Page>
+      <PageHeader
+        title="How others see you"
+        description="This is exactly what someone gets after scanning your code — the same screen they see, built from the same data."
+      />
 
       <div className="mt-6">
-        <ConnectedProfileCard profile={asScanned} />
+        <ConnectedProfileCard profile={asScanned} hero />
       </div>
 
       {gaps.length > 0 ? (
@@ -93,25 +88,19 @@ export default async function PreviewPage() {
             Anything you leave out shows as &ldquo;Not provided&rdquo; and
             won&apos;t appear on the contact card they save.
           </p>
-          <Link
-            href="/profile"
-            className="mt-3 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-          >
+          <ActionLink href="/profile" className="mt-3">
             Fill in the gaps
-          </Link>
+          </ActionLink>
         </div>
       ) : null}
 
-      <section className="mt-10">
-        <h2 className="font-display text-xl leading-none tracking-tight">
-          Who can see what
-        </h2>
+      <Section title="Who can see what">
 
         {/* Each tier takes its own fill, widest reach to narrowest. The colour
             is reinforcement, never the message: every tier states its audience
             in words, so the three stay distinguishable in greyscale and to a
             screen reader. */}
-        <dl className="mt-4 space-y-3 text-sm">
+        <dl className="space-y-3 text-sm">
           <Tier
             tone="bg-lime"
             label="Anyone who opens your profile"
@@ -131,23 +120,17 @@ export default async function PreviewPage() {
             note="Private fields never leave your account — not on the profile, not on the saved contact card."
           />
         </dl>
-      </section>
+      </Section>
 
       <div className="mt-10 flex flex-wrap gap-2">
-        <Link
-          href="/profile"
-          className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press"
-        >
+        <ActionLink href="/profile" tone="primary" size="lg">
           Edit profile
-        </Link>
-        <Link
-          href="/qr"
-          className="rounded-brutal border-2 border-ink bg-paper px-4 py-2 text-sm font-bold shadow-brutal nb-press"
-        >
+        </ActionLink>
+        <ActionLink href="/qr" size="lg">
           Your QR code
-        </Link>
+        </ActionLink>
       </div>
-    </main>
+    </Page>
   );
 }
 

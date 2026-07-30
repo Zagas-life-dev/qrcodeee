@@ -4,6 +4,15 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ConnectionActions } from "@/components/connection-actions";
 import { SaveContactButton } from "@/components/save-contact-button";
+import {
+  ActionLink,
+  EmptyState,
+  Notice,
+  Page,
+  PageHeader,
+  Pill,
+  actionClass,
+} from "@/components/page";
 
 import { SearchBox } from "./search-box";
 
@@ -43,46 +52,43 @@ export default async function ConnectionsPage({
   const pages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="font-display text-3xl leading-none tracking-tight">
-          Connections
-        </h1>
-        <div className="flex shrink-0 items-center gap-2">
-          {total > 0 ? (
-            <span className="rounded-full border-2 border-ink bg-lime px-2.5 py-0.5 text-xs font-bold tabular-nums">
-              {total} {total === 1 ? "person" : "people"}
-            </span>
-          ) : null}
-          <Link
-            href="/blocked"
-            className="flex min-h-9 items-center rounded-full border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
-          >
-            Blocked
-          </Link>
-        </div>
-      </div>
+    <Page>
+      <PageHeader
+        title="Connections"
+        actions={
+          <>
+            {total > 0 ? (
+              <Pill tone="ok" className="tabular-nums">
+                {total} {total === 1 ? "person" : "people"}
+              </Pill>
+            ) : null}
+            <ActionLink href="/blocked" size="sm" className="rounded-full">
+              Blocked
+            </ActionLink>
+          </>
+        }
+      />
 
       <SearchBox initialQuery={query} />
 
       {error ? (
-        <p className="mt-6 rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+        <Notice tone="error" className="mt-6">
           We couldn&apos;t load your connections.
-        </p>
+        </Notice>
       ) : results.length === 0 ? (
-        <div className="mt-6 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center">
+        <div className="mt-6">
           {query ? (
-            <p className="text-sm font-bold">Nobody matches &ldquo;{query}&rdquo;.</p>
+            <EmptyState>Nobody matches &ldquo;{query}&rdquo;.</EmptyState>
           ) : (
-            <>
-              <p className="text-sm font-bold">You haven&apos;t connected with anyone yet.</p>
-              <Link
-                href="/scan"
-                className="mt-4 inline-flex rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press"
-              >
-                Scan a code
-              </Link>
-            </>
+            <EmptyState
+              action={
+                <ActionLink href="/scan" tone="primary" size="lg">
+                  Scan a code
+                </ActionLink>
+              }
+            >
+              You haven&apos;t connected with anyone yet.
+            </EmptyState>
           )}
         </div>
       ) : (
@@ -97,7 +103,7 @@ export default async function ConnectionsPage({
             return (
               <li
                 key={row.connection_id}
-                className={`flex items-center gap-3 rounded-brutal border-2 border-ink p-3 shadow-brutal ${
+                className={`nb-row flex items-center gap-3 rounded-brutal border-2 border-ink p-3 shadow-brutal ${
                   // §8: a deleted account is still a real row, so it keeps its
                   // border and shadow and loses only its fill — the one place
                   // this palette steps down instead of across.
@@ -118,7 +124,20 @@ export default async function ConnectionsPage({
                 )}
 
                 <div className="min-w-0 flex-1">
-                  <p className="truncate font-display text-sm">{row.name}</p>
+                  {/* The whole card opens the person (nb-row / nb-stretch), but
+                      only the name is the actual anchor — a link may not wrap
+                      the Save and ••• controls beside it. §8: a deleted account
+                      has no page worth opening, so its row stays inert. */}
+                  {deleted ? (
+                    <p className="truncate font-display text-sm">{row.name}</p>
+                  ) : (
+                    <Link
+                      href={`/connections/${row.profile_id}`}
+                      className="nb-stretch block truncate font-display text-sm"
+                    >
+                      {row.name}
+                    </Link>
+                  )}
                   <p className="text-xs font-medium text-ink/70">
                     Connected{" "}
                     {new Date(row.connected_at).toLocaleDateString(undefined, {
@@ -133,15 +152,21 @@ export default async function ConnectionsPage({
                   <SaveContactButton
                     profileId={row.profile_id}
                     name={row.name}
-                    className="min-h-11 shrink-0 rounded-brutal border-2 border-ink bg-lime px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+                    className={actionClass({
+                      tone: "positive",
+                      size: "sm",
+                      className: "nb-above shrink-0",
+                    })}
                   />
                 ) : null}
 
-                <ConnectionActions
-                  connectionId={row.connection_id}
-                  profileId={row.profile_id}
-                  name={deleted ? "this deleted account" : row.name}
-                />
+                <span className="nb-above shrink-0">
+                  <ConnectionActions
+                    connectionId={row.connection_id}
+                    profileId={row.profile_id}
+                    name={deleted ? "this deleted account" : row.name}
+                  />
+                </span>
               </li>
             );
           })}
@@ -169,7 +194,7 @@ export default async function ConnectionsPage({
           )}
         </nav>
       ) : null}
-    </main>
+    </Page>
   );
 }
 
@@ -179,11 +204,6 @@ function PageLink({
   const search = new URLSearchParams({ page: String(page) });
   if (query) search.set("q", query);
   return (
-    <Link
-      href={`/connections?${search}`}
-      className="rounded-brutal border-2 border-ink bg-paper px-3 py-1.5 font-bold shadow-brutal-sm nb-press-sm"
-    >
-      {children}
-    </Link>
+    <ActionLink href={`/connections?${search}`}>{children}</ActionLink>
   );
 }

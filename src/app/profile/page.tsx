@@ -1,8 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/lib/auth/actions";
+import {
+  ActionLink,
+  Notice,
+  Page,
+  PageHeader,
+  Section,
+  actionClass,
+} from "@/components/page";
 
 import { AvatarUpload } from "./avatar-upload";
 import { CustomFields } from "./custom-fields";
@@ -45,43 +52,32 @@ export default async function ProfilePage() {
     // haven't been applied or handle_new_user() failed — worth saying plainly
     // rather than rendering an empty form that silently can't save.
     return (
-      <main className="flex flex-1 items-center justify-center px-4 py-16 sm:px-6">
-        <p className="max-w-sm rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-medium shadow-brutal">
+      <Page>
+        <Notice tone="error">
           We couldn&apos;t load your profile. If this is a fresh environment,
           check that the migrations in{" "}
-          <code className="font-mono font-bold">supabase/migrations</code> have
-          been applied.
-        </p>
-      </main>
+          <code className="font-mono">supabase/migrations</code> have been
+          applied.
+        </Notice>
+      </Page>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <header className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl leading-none tracking-tight">
-            Your profile
-          </h1>
-          <p className="mt-2 text-sm font-medium wrap-break-word">{user.email}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/preview"
-            className="flex min-h-11 items-center rounded-brutal border-2 border-ink bg-sky px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
-          >
+    <Page>
+      {/* Sign out moved out of the header and into Account, below. It sat
+          beside Preview as an equal, which put the one irreversible-feeling
+          control on the page in the top-right corner where a thumb lands
+          reaching for the notification bell. */}
+      <PageHeader
+        title="Your profile"
+        description={user.email}
+        actions={
+          <ActionLink href="/preview" tone="info">
             Preview
-          </Link>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
-            >
-              Sign out
-            </button>
-          </form>
-        </div>
-      </header>
+          </ActionLink>
+        }
+      />
 
       <AvatarUpload photoUrl={profile.photo_url} name={profile.name} />
 
@@ -94,7 +90,16 @@ export default async function ProfilePage() {
 
       <CustomFields fields={customFields ?? []} />
 
-      <DeleteAccount />
-    </main>
+      <Section title="Account">
+        <div className="space-y-4">
+          <form action={signOut}>
+            <button type="submit" className={actionClass({ block: true })}>
+              Sign out
+            </button>
+          </form>
+          <DeleteAccount />
+        </div>
+      </Section>
+    </Page>
   );
 }

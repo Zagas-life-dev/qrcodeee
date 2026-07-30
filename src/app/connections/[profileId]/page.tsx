@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/server";
 import type { ScannedProfile } from "@/lib/supabase/database.types";
 import { ConnectedProfileCard } from "@/components/connected-profile-card";
 import { AutoSaveContact } from "@/components/auto-save-contact";
+import { ConnectionActions } from "@/components/connection-actions";
+import { Notice, Page, PageHeader, Section } from "@/components/page";
 
 export const metadata = { title: "Connection · QR Connect" };
 
@@ -26,11 +28,24 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  */
 export default async function ConnectionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ profileId: string }>;
+  searchParams: Promise<{ new?: string }>;
 }) {
   const { profileId } = await params;
   if (!UUID.test(profileId)) notFound();
+
+  /**
+   * `?new=1` marks the two LIVE-ENCOUNTER entries — the push notification and
+   * the Realtime redirect — and only those auto-open the OS contact sheet.
+   *
+   * This page used to be reachable only from those two, so opening the sheet on
+   * arrival was always right. It is now also the destination for tapping a row
+   * in the connections list, and without this flag browsing your own list on
+   * iOS would throw the Add Contact sheet at you on every single tap.
+   */
+  const live = (await searchParams).new === "1";
 
   const supabase = await createClient();
   const {
@@ -64,12 +79,22 @@ export default async function ConnectionPage({
   // this degrades to a placeholder rather than auto-opening an empty contact.
   if (profile.deleted_at) {
     return (
-      <Shell title="This account was deleted">
-        <p className="rounded-brutal border-2 border-ink bg-paper p-3 text-sm font-medium shadow-brutal">
+      <Page width="md">
+        <BackLink />
+        <PageHeader title="This account was deleted" size="sm" />
+        <Notice className="mt-6">
           You&apos;re still connected, but there&apos;s no contact information to
           save any more.
-        </p>
-      </Shell>
+        </Notice>
+        <Section title="Manage">
+          <ConnectionActions
+            connectionId={connection.id}
+            profileId={profileId}
+            name="this deleted account"
+            layout="inline"
+          />
+        </Section>
+      </Page>
     );
   }
 
@@ -84,39 +109,45 @@ export default async function ConnectionPage({
   };
 
   return (
-    <Shell title={`You're connected with ${profile.name}`}>
-      <div className="mt-4">
-        <ConnectedProfileCard profile={scanned} />
+    <Page width="md">
+      <BackLink />
+
+      {/* The person's name IS the page now that this is a destination you
+          navigate to rather than something a notification drops you into.
+          No description: the hero card below already carries the bio, and
+          printing it twice on a phone costs a third of the first screen. */}
+      <PageHeader title={profile.name} size="sm" />
+
+      <div className="mt-6">
+        <ConnectedProfileCard profile={scanned} hero />
       </div>
 
       <div className="mt-6">
-        <AutoSaveContact profileId={profileId} name={profile.name} />
+        <AutoSaveContact profileId={profileId} name={profile.name} auto={live} />
       </div>
-    </Shell>
+
+      {/* Disconnect / block / report were previously reachable only from the
+          list. A detail page you can't act on sends you back to find the row
+          you just left. */}
+      <Section title="Manage">
+        <ConnectionActions
+          connectionId={connection.id}
+          profileId={profileId}
+          name={profile.name}
+          layout="inline"
+        />
+      </Section>
+    </Page>
   );
 }
 
-function Shell({ title, children }: { title: string; children: React.ReactNode }) {
+function BackLink() {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-2xl leading-tight tracking-tight text-balance">
-        {title}
-      </h1>
-      <div className="mt-4">{children}</div>
-      <div className="mt-8 flex flex-wrap gap-2">
-        <Link
-          href="/connections"
-          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-        >
-          Your connections
-        </Link>
-        <Link
-          href="/scan"
-          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-        >
-          Scan another
-        </Link>
-      </div>
-    </main>
+    <Link
+      href="/connections"
+      className="mb-5 inline-flex min-h-9 items-center gap-1.5 text-sm font-bold"
+    >
+      <span aria-hidden>←</span> Connections
+    </Link>
   );
 }

@@ -101,8 +101,13 @@ export function ConnectionListener({ userId }: { userId: string }) {
           void markRead([row.id]);
           // Guards the mutual-scan case: if both people scan at once, whoever is
           // already on the other's page must not be bounced through it again and
-          // lose the save they are mid-way through.
-          if (window.location.pathname !== target) router.push(target);
+          // lose the save they are mid-way through. Compared on pathname alone,
+          // so the ?new=1 below doesn't defeat the guard.
+          //
+          // ?new=1 marks this as a live encounter, which is what permits the
+          // target page to auto-open the OS contact sheet — the same page
+          // reached by tapping a row in the connections list must not.
+          if (window.location.pathname !== target) router.push(`${target}?new=1`);
           return;
         }
 

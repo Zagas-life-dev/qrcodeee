@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 
@@ -9,6 +8,7 @@ import type { ScanResult } from "@/lib/supabase/database.types";
 import { ConnectedProfileCard } from "@/components/connected-profile-card";
 import { EnableNotifications } from "@/components/enable-notifications";
 import { AutoSaveContact } from "@/components/auto-save-contact";
+import { ActionLink, Notice, Page, PageHeader } from "@/components/page";
 
 export const metadata = { title: "Connecting · QR Connect" };
 
@@ -41,9 +41,9 @@ export default async function ConnectPage({
   if (error) {
     return (
       <Shell title="Something went wrong">
-        <p className="rounded-brutal border-2 border-ink bg-coral p-3 text-sm font-bold shadow-brutal">
+        <Notice tone="error">
           We couldn&apos;t complete the connection. Please try scanning again.
-        </p>
+        </Notice>
       </Shell>
     );
   }
@@ -79,7 +79,11 @@ export default async function ConnectPage({
           // prompt". This is the scanned person's counterpart to the page the
           // scanner is looking at right now — same profile card, same save —
           // and the save opens by itself on arrival where the platform allows.
-          url: `${siteUrl()}/connections/${encodeURIComponent(user.id)}`,
+          //
+          // ?new=1 is what earns the auto-open. That page is now also reachable
+          // by tapping a row in the connections list, and only these live
+          // entries should throw the OS contact sheet up on arrival.
+          url: `${siteUrl()}/connections/${encodeURIComponent(user.id)}?new=1`,
           // Per connection AND epoch: duplicates collapse, but a genuine
           // reconnect (§5.1) still surfaces as a new notification.
           tag: `connection:${scannedId}:${epoch}`,
@@ -151,7 +155,7 @@ export default async function ConnectPage({
           }
         >
           <div className="mt-4">
-            <ConnectedProfileCard profile={result.profile} />
+            <ConnectedProfileCard profile={result.profile} hero />
           </div>
 
           {/* The scanner's half of the mutual save. The scanned person is being
@@ -177,30 +181,18 @@ export default async function ConnectPage({
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-2xl leading-tight tracking-tight text-balance">
-        {title}
-      </h1>
+    <Page width="md">
+      <PageHeader title={title} size="sm" />
       <div className="mt-4">{children}</div>
-    </main>
+    </Page>
   );
 }
 
 function Actions() {
   return (
     <div className="mt-8 flex flex-wrap gap-2">
-      <Link
-        href="/connections"
-        className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-      >
-        Your connections
-      </Link>
-      <Link
-        href="/scan"
-        className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-      >
-        Scan another
-      </Link>
+      <ActionLink href="/connections">Your connections</ActionLink>
+      <ActionLink href="/scan">Scan another</ActionLink>
     </div>
   );
 }

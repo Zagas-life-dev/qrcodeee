@@ -5,6 +5,7 @@ import jsQR from "jsqr";
 import type QRCodeStyling from "qr-code-styling";
 
 import { mintQrToken, rotateToken, saveQrStyle } from "@/lib/qr/actions";
+import { Section, actionClass } from "@/components/page";
 import {
   CORNER_STYLES,
   DOT_STYLES,
@@ -217,18 +218,25 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
   const contrastPoor = !hasUsableContrast(style);
 
   return (
-    <div className="mt-8 grid gap-8 lg:grid-cols-[auto_minmax(0,1fr)]">
-      <div>
+    // The code leads and the controls follow, rather than the two sharing a
+    // row. Styling your code is a thing you do once; showing it is the thing
+    // you do in front of another person, and on a phone the previous two-column
+    // grid stacked into "here are some colour pickers, scroll for your code".
+    <div className="mt-8 space-y-8">
+      <div className="flex flex-col items-center">
         {/* The frame is the app's; the fill inside it is the USER's chosen QR
             background, which is why this one surface doesn't take bg-paper. */}
         <div
           ref={holder}
-          className="rounded-brutal border-2 border-ink p-3 shadow-brutal"
+          className="rounded-brutal border-2 border-ink p-3 shadow-brutal-lg"
           style={{ background: style.backgroundColor }}
         />
-        <p className="mt-3 max-w-72 font-mono text-[10px] break-all text-ink/55">{url}</p>
+        <p className="mt-4 max-w-72 text-center font-mono text-[10px] break-all text-ink/55">
+          {url}
+        </p>
       </div>
 
+      <Section title="Style" className="mt-0">
       <div className="space-y-5 rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
         <Swatch
           label="Dot colour"
@@ -280,7 +288,7 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
+            className={actionClass({ tone: "primary", size: "lg" })}
           >
             {test.kind === "testing" ? "Testing…" : isPending ? "Saving…" : "Test & save"}
           </button>
@@ -288,29 +296,32 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
             type="button"
             onClick={() => { setStyle(SAFE_DEFAULT_STYLE); setTest({ kind: "idle" }); }}
             disabled={isPending}
-            className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-40"
+            className={actionClass()}
           >
             Reset to default
           </button>
           {message ? <p className="text-sm font-medium">{message}</p> : null}
         </div>
-
-        <div className="border-t-2 border-ink pt-5">
-          <button
-            type="button"
-            onClick={handleRotate}
-            disabled={isPending}
-            className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
-          >
-            Generate a new QR code
-          </button>
-          <p className="mt-2 max-w-md text-xs font-medium text-ink/70">
-            Anything already printed or shared stops working. People you&apos;re
-            already connected to are unaffected — connections don&apos;t depend
-            on the code.
-          </p>
-        </div>
       </div>
+      </Section>
+
+      {/* Its own section rather than a divider inside the style card: rotating
+          the token has nothing to do with how the code looks, and sharing a
+          surface with "Reset to default" invited reading them as a pair. */}
+      <Section
+        title="Start over"
+        description="Anything already printed or shared stops working. People you're already connected to are unaffected — connections don't depend on the code."
+        className="mt-0"
+      >
+        <button
+          type="button"
+          onClick={handleRotate}
+          disabled={isPending}
+          className={actionClass()}
+        >
+          Generate a new QR code
+        </button>
+      </Section>
     </div>
   );
 }

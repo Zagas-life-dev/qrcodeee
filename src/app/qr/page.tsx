@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -6,6 +5,7 @@ import { connectUrl } from "@/lib/site";
 import { normalizeQrStyle } from "@/lib/qr/style";
 import { mintQrToken } from "@/lib/qr/actions";
 import { EnableNotifications } from "@/components/enable-notifications";
+import { ActionLink, Notice, Page, PageHeader } from "@/components/page";
 
 import { QrEditor } from "./qr-editor";
 
@@ -32,37 +32,23 @@ export default async function QrPage() {
 
   if (!profile || !minted.ok) {
     return (
-      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
-        <p className="rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
-          We couldn&apos;t load your QR code.
-        </p>
-      </main>
+      <Page>
+        <Notice tone="error">We couldn&apos;t load your QR code.</Notice>
+      </Page>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="font-display text-3xl leading-none tracking-tight">
-            Your QR code
-          </h1>
-          <p className="mt-3 text-sm font-medium">
-            Show this to someone and have them scan it. You&apos;ll both be
-            connected straight away — there&apos;s nothing to accept.
-          </p>
-          <p className="mt-1 text-sm font-medium">
-            This code expires every 15 minutes and refreshes itself, so a
-            screenshot of it can&apos;t be used later.
-          </p>
-        </div>
-        <Link
-          href="/preview"
-          className="flex min-h-11 shrink-0 items-center rounded-brutal border-2 border-ink bg-sky px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
-        >
-          How others see you
-        </Link>
-      </div>
+    <Page width="xl">
+      <PageHeader
+        title="Your QR code"
+        description="Show this to someone and have them scan it. You'll both be connected straight away — there's nothing to accept."
+        actions={
+          <ActionLink href="/preview" tone="info">
+            How others see you
+          </ActionLink>
+        }
+      />
 
       {/* Normalised on the way out as well as on the way in: qr_style is jsonb
           with only a size cap, so a row written before a validation change (or
@@ -85,6 +71,6 @@ export default async function QrPage() {
           body="You won't be looking at your phone when it happens — they scan, and you find out straight away with a one-tap prompt to save their contact."
         />
       </div>
-    </main>
+    </Page>
   );
 }

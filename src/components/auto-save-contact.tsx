@@ -21,19 +21,29 @@ import { SaveContactButton } from "@/components/save-contact-button";
 export function AutoSaveContact({
   profileId,
   name,
+  auto = true,
 }: {
   profileId: string;
   name: string;
+  /**
+   * Whether arriving here counts as a live encounter.
+   *
+   * False when someone simply tapped this person in their connections list —
+   * the button below is then the only way the sheet opens. Auto-opening the OS
+   * contact screen is right when a scan just happened and both people are
+   * standing there; it is hostile when you are browsing your own list.
+   */
+  auto?: boolean;
 }) {
   const fired = useRef(false);
-  const [auto, setAuto] = useState(false);
+  const [opened, setOpened] = useState(false);
 
   useEffect(() => {
-    if (fired.current || !canAutoTrigger()) return;
+    if (!auto || fired.current || !canAutoTrigger()) return;
     fired.current = true;
-    setAuto(true);
+    setOpened(true);
     void saveContact(profileId, name);
-  }, [profileId, name]);
+  }, [auto, profileId, name]);
 
   return (
     <div>
@@ -43,9 +53,9 @@ export function AutoSaveContact({
         autoFocus
         className="w-full rounded-brutal border-2 border-ink bg-lime px-3 py-3 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
       >
-        {auto ? `Open ${name}'s contact again` : `Save ${name} to contacts`}
+        {opened ? `Open ${name}'s contact again` : `Save ${name} to contacts`}
       </SaveContactButton>
-      {auto ? (
+      {opened ? (
         <p className="mt-3 text-xs font-medium text-ink/70">
           Your contacts should have opened. If nothing appeared, tap above.
         </p>

@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import { notificationText, relativeTime } from "@/lib/notifications/display";
 import type { NotificationType } from "@/lib/supabase/database.types";
 import { SaveContactButton } from "@/components/save-contact-button";
+import { ActionLink, EmptyState, Page, PageHeader } from "@/components/page";
 
 import { MarkAllReadButton, MarkOnOpen } from "./actions-client";
 
@@ -38,22 +38,22 @@ export default async function NotificationsPage() {
   const unreadIds = notifications.filter((n) => !n.read_at).map((n) => n.id);
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="font-display text-3xl leading-none tracking-tight">
-          Notifications
-        </h1>
-        {unreadIds.length > 0 ? <MarkAllReadButton /> : null}
-      </div>
+    <Page>
+      <PageHeader
+        title="Notifications"
+        actions={unreadIds.length > 0 ? <MarkAllReadButton /> : undefined}
+      />
 
       {/* Opening the list marks what's on screen read (§5.5). */}
       <MarkOnOpen ids={unreadIds} />
 
       {notifications.length === 0 ? (
-        <p className="mt-8 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center text-sm font-bold">
-          Nothing yet. You&apos;ll hear from us when someone you&apos;re
-          connected with updates their details.
-        </p>
+        <div className="mt-8">
+          <EmptyState>
+            Nothing yet. You&apos;ll hear from us when someone you&apos;re
+            connected with updates their details.
+          </EmptyState>
+        </div>
       ) : (
         <ul className="mt-6 space-y-3">
           {notifications.map((notification) => {
@@ -109,12 +109,9 @@ export default async function NotificationsPage() {
         </ul>
       )}
 
-      <Link
-        href="/connections"
-        className="mt-8 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
-      >
+      <ActionLink href="/connections" className="mt-8">
         Your connections
-      </Link>
-    </main>
+      </ActionLink>
+    </Page>
   );
 }

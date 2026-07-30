@@ -21,7 +21,19 @@ const CATEGORIES: { value: ReportCategory; label: string }[] = [
   { value: "other", label: "Something else" },
 ];
 
-type Props = { connectionId: string; profileId: string; name: string };
+type Props = {
+  connectionId: string;
+  profileId: string;
+  name: string;
+  /**
+   * `menu` (the default) is the ••• button a list row needs, where three
+   * labelled buttons per row would bury the row's own content. `inline` lays
+   * the same three out directly, for the detail page — a screen dedicated to
+   * one person has the room, and hiding its only actions behind a menu on a
+   * page with nothing else on it is a tap for nothing.
+   */
+  layout?: "menu" | "inline";
+};
 
 /**
  * Per-connection actions, as a bottom sheet.
@@ -38,7 +50,12 @@ type Props = { connectionId: string; profileId: string; name: string };
  * thumb-sized and anchored to the same edge every time regardless of which row
  * opened it.
  */
-export function ConnectionActions({ connectionId, profileId, name }: Props) {
+export function ConnectionActions({
+  connectionId,
+  profileId,
+  name,
+  layout = "menu",
+}: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<"disconnect" | "block" | null>(null);
@@ -62,15 +79,48 @@ export function ConnectionActions({ connectionId, profileId, name }: Props) {
 
   return (
     <>
-      <button
-        type="button"
-        onClick={() => menuRef.current?.showModal()}
-        aria-label={`Actions for ${name}`}
-        aria-haspopup="dialog"
-        className="flex size-11 shrink-0 items-center justify-center rounded-brutal border-2 border-ink bg-paper text-base font-bold shadow-brutal-sm nb-press-sm"
-      >
-        <span aria-hidden>•••</span>
-      </button>
+      {layout === "menu" ? (
+        <button
+          type="button"
+          onClick={() => menuRef.current?.showModal()}
+          aria-label={`Actions for ${name}`}
+          aria-haspopup="dialog"
+          className="flex size-11 shrink-0 items-center justify-center rounded-brutal border-2 border-ink bg-paper text-base font-bold shadow-brutal-sm nb-press-sm"
+        >
+          <span aria-hidden>•••</span>
+        </button>
+      ) : (
+        // Same three actions, same confirm sheet — only the trigger differs.
+        <div className="grid gap-2 sm:grid-cols-3">
+          <button
+            type="button"
+            onClick={() => {
+              setConfirming("disconnect");
+              menuRef.current?.showModal();
+            }}
+            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+          >
+            Disconnect
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setConfirming("block");
+              menuRef.current?.showModal();
+            }}
+            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+          >
+            Block
+          </button>
+          <button
+            type="button"
+            onClick={() => reportRef.current?.showModal()}
+            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+          >
+            Report
+          </button>
+        </div>
+      )}
 
       <Sheet ref={menuRef} onClose={() => setConfirming(null)}>
         {confirming === "disconnect" ? (

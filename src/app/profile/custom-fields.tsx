@@ -9,6 +9,7 @@ import {
   reorderCustomFields,
   updateCustomField,
 } from "@/lib/profile/custom-field-actions";
+import { Notice, Pill, Section } from "@/components/page";
 import {
   MAX_CUSTOM_FIELDS,
   MAX_LABEL_LENGTH,
@@ -71,30 +72,22 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
   }
 
   return (
-    <section className="mt-10">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h2 className="font-display text-xl leading-none tracking-tight">
-          Custom fields
-        </h2>
-        <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold tabular-nums">
+    <Section
+      title="Custom fields"
+      description="Anything else worth sharing — LinkedIn, company, job title. Each one can be public or kept private to you."
+      action={
+        <Pill className="tabular-nums">
           {order.length} of {MAX_CUSTOM_FIELDS}
-        </span>
-      </div>
-      <p className="mt-2 text-sm font-medium">
-        Anything else worth sharing — LinkedIn, company, job title. Each one can
-        be public or kept private to you.
-      </p>
-
+        </Pill>
+      }
+    >
       {error ? (
-        <p
-          role="alert"
-          className="mt-4 rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-sm font-bold shadow-brutal-sm"
-        >
+        <Notice tone="error" role="alert" className="mb-4">
           {error}
-        </p>
+        </Notice>
       ) : null}
 
-      <ul className="mt-4 space-y-3">
+      <ul className="space-y-3">
         {order.map((field, index) => {
           const draft = draftOf(field);
           const dirty = isDirty(field);
@@ -207,7 +200,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
         atLimit={atLimit}
         onAdd={(label, value, isPublic) => run(() => addCustomField(label, value, isPublic))}
       />
-    </section>
+    </Section>
   );
 }
 

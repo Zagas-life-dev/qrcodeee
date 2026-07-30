@@ -1,18 +1,59 @@
 import type { ScannedProfile } from "@/lib/supabase/database.types";
 
+import ProfileCard from "./profile-card";
+
 /**
  * A profile as a CONNECTION sees it.
  *
- * Shared by /connect/[token] and /preview on purpose. A preview built from its
- * own markup is a preview that drifts: add a field to one and forget the other,
- * and the app starts confidently showing people something different from what
- * their connections actually get. Same component, same shape, no drift possible.
+ * Shared by /connect/[token], /preview and /connections/[profileId] on purpose.
+ * A preview built from its own markup is a preview that drifts: add a field to
+ * one and forget the other, and the app starts confidently showing people
+ * something different from what their connections actually get. Same component,
+ * same shape, no drift possible.
  *
  * The shape is `ScannedProfile` — exactly what connect_via_scan returns — so the
  * preview is also pinned to the real payload rather than to a hand-assembled
  * approximation of it.
+ *
+ * `hero` swaps the compact name/photo header for the React Bits ProfileCard. It
+ * is a presentation flag ONLY: both branches render the same `<dl>` from the
+ * same payload below, so the no-drift guarantee holds either way and turning it
+ * off anywhere means turning it off everywhere.
  */
-export function ConnectedProfileCard({ profile }: { profile: ScannedProfile }) {
+export function ConnectedProfileCard({
+  profile,
+  hero = false,
+}: {
+  profile: ScannedProfile;
+  hero?: boolean;
+}) {
+  if (hero) {
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-center">
+          <ProfileCard
+            name={profile.name}
+            // The card's `title` slot is built for a two-word job title; this
+            // app has no such field, so the bio goes there and the stylesheet
+            // clamps it to two lines rather than letting it run off the card.
+            title={profile.bio ?? undefined}
+            avatarUrl={profile.photo_url}
+            // No handle and no status exist in this product's data. Upstream
+            // defaults them to "@javicodes / Online"; passing nothing drops
+            // both lines rather than captioning a real person with a demo
+            // identity.
+            showUserInfo={false}
+            enableTilt
+            enableMobileTilt={false}
+          />
+        </div>
+        <div className="rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
+          <Details profile={profile} />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
       <div className="flex items-center gap-3">
@@ -36,14 +77,23 @@ export function ConnectedProfileCard({ profile }: { profile: ScannedProfile }) {
         </div>
       </div>
 
-      <dl className="mt-4 space-y-2 border-t-2 border-ink pt-4 text-sm">
-        <Row label="Phone" value={profile.phone} />
-        <Row label="Email" value={profile.email} />
-        {profile.custom_fields.map((field) => (
-          <Row key={field.label} label={field.label} value={field.value} />
-        ))}
-      </dl>
+      <div className="mt-4 border-t-2 border-ink pt-4">
+        <Details profile={profile} />
+      </div>
     </div>
+  );
+}
+
+/** The payload itself — identical in both presentations, which is the point. */
+function Details({ profile }: { profile: ScannedProfile }) {
+  return (
+    <dl className="space-y-2 text-sm">
+      <Row label="Phone" value={profile.phone} />
+      <Row label="Email" value={profile.email} />
+      {profile.custom_fields.map((field) => (
+        <Row key={field.label} label={field.label} value={field.value} />
+      ))}
+    </dl>
   );
 }
 

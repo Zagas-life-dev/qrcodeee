@@ -17,8 +17,8 @@ export function DeleteAccount() {
   // to carry it, and a paper panel with a red-bordered button would read as one
   // more row of the form above it.
   return (
-    <section className="mt-12 rounded-brutal border-2 border-ink bg-coral p-4 shadow-brutal">
-      <h2 className="font-display text-base">Delete your account</h2>
+    <div className="rounded-brutal border-2 border-ink bg-coral p-4 shadow-brutal">
+      <h3 className="font-display text-base">Delete your account</h3>
 
       {!open ? (
         <>
@@ -93,6 +93,6 @@ export function DeleteAccount() {
           </div>
         </div>
       )}
-    </section>
+    </div>
   );
 }

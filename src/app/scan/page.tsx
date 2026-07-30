@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
+import { Page, PageHeader } from "@/components/page";
 
 import { Scanner } from "./scanner";
 
@@ -14,12 +15,12 @@ export default async function ScanPage() {
   if (!user) redirect("/login?next=/scan");
 
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <h1 className="font-display text-3xl leading-none tracking-tight">Scan a code</h1>
-      <p className="mt-3 text-sm font-medium">
-        Scanning connects you both at once. There&apos;s no request to accept.
-      </p>
+    <Page width="md">
+      <PageHeader
+        title="Scan a code"
+        description="Scanning connects you both at once. There's no request to accept."
+      />
       <Scanner />
-    </main>
+    </Page>
   );
 }

@@ -1,9 +1,17 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 import type { NetworkingStats } from "@/lib/supabase/database.types";
 import { WeeklyChart } from "@/components/analytics/weekly-chart";
+import {
+  ActionLink,
+  EmptyState,
+  Notice,
+  Page,
+  PageHeader,
+  Pill,
+  Section,
+} from "@/components/page";
 
 export const metadata = { title: "Analytics · QR Connect" };
 
@@ -28,12 +36,12 @@ export default async function AnalyticsPage() {
 
   if (error || !stats) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-        <h1 className="font-display text-3xl leading-none tracking-tight">Analytics</h1>
-        <p className="mt-4 rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+      <Page width="xl">
+        <PageHeader title="Analytics" />
+        <Notice tone="error" className="mt-6">
           We couldn&apos;t load your stats.
-        </p>
-      </main>
+        </Notice>
+      </Page>
     );
   }
 
@@ -47,28 +55,28 @@ export default async function AnalyticsPage() {
   const delta = stats.new_30d - stats.new_prev_30d;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="flex flex-wrap items-baseline justify-between gap-4">
-        <h1 className="font-display text-3xl leading-none tracking-tight">Analytics</h1>
-        {stats.first_connection_at ? (
-          <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold">
-            Since {longDate(stats.first_connection_at)}
-          </span>
-        ) : null}
-      </div>
+    <Page width="xl">
+      <PageHeader
+        title="Analytics"
+        actions={
+          stats.first_connection_at ? (
+            <Pill>Since {longDate(stats.first_connection_at)}</Pill>
+          ) : undefined
+        }
+      />
 
       {stats.active === 0 && stats.scans_total === 0 ? (
-        <div className="mt-8 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center">
-          <p className="text-sm font-bold">
+        <div className="mt-8">
+          <EmptyState
+            action={
+              <ActionLink href="/qr" tone="primary" size="lg">
+                Show your code
+              </ActionLink>
+            }
+          >
             Nothing to measure yet. Once people start scanning your code, your
             growth and reach show up here.
-          </p>
-          <Link
-            href="/qr"
-            className="mt-4 inline-flex rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press"
-          >
-            Show your code
-          </Link>
+          </EmptyState>
         </div>
       ) : (
         <>
@@ -117,11 +125,8 @@ export default async function AnalyticsPage() {
           </section>
 
           {/* The part with a next step attached. */}
-          <section className="mt-10">
-            <h2 className="font-display text-xl leading-none tracking-tight">
-              Worth doing something about
-            </h2>
-            <ul className="mt-4 space-y-3">
+          <Section title="Worth doing something about">
+            <ul className="space-y-3">
               <Action
                 count={stats.unsaved}
                 singular="connection whose contact you haven't saved"
@@ -139,7 +144,7 @@ export default async function AnalyticsPage() {
                 cta="Refresh"
               />
             </ul>
-          </section>
+          </Section>
 
           <p className="mt-8 text-xs font-medium text-ink/70">
             Scan counts come from your own QR codes, which expire every 15
@@ -149,7 +154,7 @@ export default async function AnalyticsPage() {
           </p>
         </>
       )}
-    </main>
+    </Page>
   );
 }
 
@@ -230,12 +235,9 @@ function Action({
         <span className="font-bold">{count}</span>{" "}
         {count === 1 ? singular : plural}
       </span>
-      <Link
-        href={href}
-        className="flex min-h-11 shrink-0 items-center rounded-brutal border-2 border-ink bg-lemon px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
-      >
+      <ActionLink href={href} tone="primary" size="sm" className="shrink-0">
         {cta}
-      </Link>
+      </ActionLink>
     </li>
   );
 }

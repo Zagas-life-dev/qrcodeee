@@ -67,9 +67,10 @@
   --dur-exit: 140ms;
   --dur-enter: 220ms;
 
-  /* The bottom tab bar's height, so page padding and the sheet's resting
-     offset can both refer to one number instead of guessing at it. */
-  --tab-bar-h: 4.25rem;
+  /* What the floating dock occupies: its own height plus the gap it leaves
+     below itself. Page padding refers to this so the last row of a list clears
+     the dock instead of sitting under it. */
+  --tab-bar-h: 5rem;
 }
 
 :root {
@@ -214,6 +215,42 @@
       box-shadow: 2px 2px 0 #0b0b0b;
     }
   }
+}
+
+/**
+ * A whole card made tappable without nesting its buttons inside a link.
+ *
+ * `<a>` may not contain interactive content, and a connections row carries two
+ * controls of its own — so the link wraps only the name and then throws a
+ * transparent ::after across the whole card to collect the taps. Everything that
+ * needs to stay separately tappable is lifted above it with `nb-above`.
+ *
+ * The press state keys off `:has(> .nb-stretch:active)` rather than the card's
+ * own `:active`, which is the difference between "the row was tapped" and
+ * "anything inside the row was tapped" — without it, pressing Save would flash
+ * the entire card as though it were navigating.
+ */
+@utility nb-row {
+  position: relative;
+  transition: background-color var(--dur-fast) var(--ease-out);
+  &:has(> * > .nb-stretch:active),
+  &:has(> .nb-stretch:active) {
+    background-color: var(--color-lemon);
+  }
+}
+
+@utility nb-stretch {
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+}
+
+/* Sits above the stretched link's ::after so it stays independently tappable. */
+@utility nb-above {
+  position: relative;
+  z-index: 1;
 }
 
 /**
