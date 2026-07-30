@@ -41,7 +41,7 @@ export default async function ConnectPage({
   if (error) {
     return (
       <Shell title="Something went wrong">
-        <p className="text-sm opacity-70">
+        <p className="rounded-brutal border-2 border-ink bg-coral p-3 text-sm font-bold shadow-brutal">
           We couldn&apos;t complete the connection. Please try scanning again.
         </p>
       </Shell>
@@ -94,7 +94,7 @@ export default async function ConnectPage({
     case "self_scan":
       return (
         <Shell title="That's your own QR code">
-          <p className="text-sm opacity-70">
+          <p className="text-sm font-medium">
             Show it to someone else and have them scan it.
           </p>
           <Actions />
@@ -107,7 +107,7 @@ export default async function ConnectPage({
     case "invalid_token":
       return (
         <Shell title="This QR code is no longer active">
-          <p className="text-sm opacity-70">
+          <p className="text-sm font-medium">
             Ask them for their current one — codes change when someone resets
             theirs.
           </p>
@@ -118,7 +118,7 @@ export default async function ConnectPage({
     case "blocked":
       return (
         <Shell title="You blocked this person">
-          <p className="text-sm opacity-70">
+          <p className="text-sm font-medium">
             Unblock them from your connections if you want to connect.
           </p>
           <Actions />
@@ -128,7 +128,7 @@ export default async function ConnectPage({
     case "rate_limited":
       return (
         <Shell title="Slow down for a moment">
-          <p className="text-sm opacity-70">
+          <p className="text-sm font-medium">
             You&apos;ve scanned a lot in a short space of time. Wait a minute and
             try again — nothing has gone wrong with your account.
           </p>
@@ -177,9 +177,11 @@ export default async function ConnectPage({
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-6 py-12">
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-      <div className="mt-3">{children}</div>
+    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="font-display text-2xl leading-tight tracking-tight text-balance">
+        {title}
+      </h1>
+      <div className="mt-4">{children}</div>
     </main>
   );
 }
@@ -189,13 +191,13 @@ function Actions() {
     <div className="mt-8 flex flex-wrap gap-2">
       <Link
         href="/connections"
-        className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+        className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
       >
         Your connections
       </Link>
       <Link
         href="/scan"
-        className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+        className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
       >
         Scan another
       </Link>

@@ -38,11 +38,11 @@ export function ProfileForm({ name, bio, phone, email }: Props) {
         hint="Always public."
       />
 
-      <fieldset className="space-y-6 rounded-lg border border-current/15 p-4">
-        <legend className="px-2 text-xs font-medium uppercase tracking-wide opacity-60">
+      <fieldset className="space-y-6 rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
+        <legend className="rounded-full border-2 border-ink bg-lilac px-3 py-0.5 font-display text-xs tracking-wide uppercase">
           Contact details
         </legend>
-        <p className="text-sm opacity-70">
+        <p className="text-sm font-medium">
           Only people you&apos;ve connected with can see these. They&apos;re
           hidden from everyone else, including anyone who just opens your
           profile.
@@ -67,19 +67,24 @@ export function ProfileForm({ name, bio, phone, email }: Props) {
         />
       </fieldset>
 
-      <div className="flex items-center gap-4">
+      <div className="flex flex-wrap items-center gap-4">
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md border border-current/15 px-4 py-2 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+          className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2.5 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save profile"}
         </button>
 
+        {/* The error fill carries the state, so the text stays ink — a red
+            string on a coral panel is the one combination this palette can't
+            hold. */}
         {state.message ? (
           <p
             role="status"
-            className={`text-sm ${state.status === "error" ? "text-red-500" : "opacity-70"}`}
+            className={`rounded-brutal border-2 border-ink px-3 py-1.5 text-sm font-bold ${
+              state.status === "error" ? "bg-coral" : "bg-lime"
+            }`}
           >
             {state.message}
           </p>
@@ -118,14 +123,20 @@ function Field({
     defaultValue,
     "aria-invalid": Boolean(error),
     "aria-describedby": describedBy || undefined,
+    // An invalid field takes the coral fill rather than a red border: against a
+    // 2px ink outline a colour-shifted border is close to invisible, and the
+    // fill is the only channel loud enough to read as "this one".
+    // text-base, not text-sm: iOS Safari zooms the whole viewport when a field
+    // under 16px takes focus, and it does not zoom back out. On the QR and scan
+    // screens that leaves a fixed-size target mid-scroll at the wrong scale.
     className:
-      "w-full rounded-md border border-current/15 bg-transparent px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-1 aria-invalid:border-red-500",
+      "w-full rounded-brutal border-2 border-ink bg-paper px-3 py-2.5 text-base font-medium shadow-brutal-sm aria-invalid:bg-coral sm:text-sm",
     ...rest,
   };
 
   return (
     <div className="space-y-1.5">
-      <label htmlFor={name} className="block text-sm font-medium">
+      <label htmlFor={name} className="block font-display text-sm">
         {label}
       </label>
       {multiline ? (
@@ -134,12 +145,12 @@ function Field({
         <input {...shared} />
       )}
       {hint ? (
-        <p id={`${name}-hint`} className="text-xs opacity-60">
+        <p id={`${name}-hint`} className="text-xs font-medium text-ink/70">
           {hint}
         </p>
       ) : null}
       {error ? (
-        <p id={`${name}-error`} className="text-xs text-red-500">
+        <p id={`${name}-error`} className="text-xs font-bold">
           {error}
         </p>
       ) : null}

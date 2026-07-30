@@ -32,29 +32,33 @@ export default async function QrPage() {
 
   if (!profile || !minted.ok) {
     return (
-      <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-        <p className="text-sm opacity-70">We couldn&apos;t load your QR code.</p>
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
+        <p className="rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+          We couldn&apos;t load your QR code.
+        </p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your QR code</h1>
-          <p className="mt-1 text-sm opacity-70">
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl leading-none tracking-tight">
+            Your QR code
+          </h1>
+          <p className="mt-3 text-sm font-medium">
             Show this to someone and have them scan it. You&apos;ll both be
             connected straight away — there&apos;s nothing to accept.
           </p>
-          <p className="mt-1 text-sm opacity-70">
+          <p className="mt-1 text-sm font-medium">
             This code expires every 15 minutes and refreshes itself, so a
             screenshot of it can&apos;t be used later.
           </p>
         </div>
         <Link
           href="/preview"
-          className="shrink-0 rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+          className="flex min-h-11 shrink-0 items-center rounded-brutal border-2 border-ink bg-sky px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
         >
           How others see you
         </Link>

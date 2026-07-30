@@ -40,7 +40,7 @@ export function MarkAllReadButton() {
           router.refresh();
         })
       }
-      className="rounded-md border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5 disabled:opacity-50"
+      className="min-h-10 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
     >
       {isPending ? "Marking…" : "Mark all read"}
     </button>

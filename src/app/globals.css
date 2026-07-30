@@ -1,46 +1,413 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/**
+ * Neo-brutalism (docs/design lang).
+ *
+ * The whole system is three moves: a 2px ink outline on every surface, a hard
+ * offset shadow with zero blur, and flat saturated fills. No gradients, no
+ * blurs, no opacity-based depth — depth is the offset or it isn't there. The
+ * corollary is that `opacity` stops being a hierarchy tool: secondary text gets
+ * a real weight or size step instead, because a 70%-opacity label on a yellow
+ * canvas is just a muddier yellow.
+ *
+ * LIGHT ONLY, DELIBERATELY. Every reference in docs/design lang is built on a
+ * cream-and-ink pairing with no dark counterpart — inverting it gives white
+ * borders on near-black, which is a different language wearing the same shadow.
+ * The `prefers-color-scheme: dark` block that used to live here was removed
+ * rather than translated, so there is one set of colours to reason about and
+ * chart contrast only has to hold against one surface.
+ */
+@theme {
+  /* Near-black rather than #000: pure black against saturated fills vibrates,
+     and this colour is the border on every surface in the app. */
+  --color-ink: #0b0b0b;
+  /* Card surface. Warm white, so a card reads as paper laid ON the canvas
+     rather than as a hole punched through it. */
+  --color-paper: #fffdf7;
+  /* The page itself. */
+  --color-canvas: #ffe27f;
 
-  /* Chart series steps, validated against THIS app's surfaces (#ffffff light,
-     #0a0a0a dark) rather than a reference surface — contrast only means
-     something against the background a chart actually renders on. Both clear
-     3:1 in both modes, and the pair clears the CVD and normal-vision floors
-     (worst ΔE 24.7 protan / 33.6 normal in light).
+  /* Flat fills. Every one is light enough to carry ink text above 12:1, which
+     is what lets any of them take a label without needing a second text
+     colour — the reason this palette is all tints and no deep shades. */
+  --color-lemon: #ffc93c;
+  --color-bubble: #ff8fc7;
+  --color-lime: #a8e86a;
+  --color-lilac: #bca6f7;
+  --color-sky: #86d8f7;
+  --color-coral: #ff7060;
+
+  --radius-brutal: 14px;
+
+  /* Hex rather than var(--color-ink): these feed `shadow-*` utilities, and an
+     unresolved reference here fails silently as "no shadow". */
+  --shadow-brutal-sm: 2px 2px 0 #0b0b0b;
+  --shadow-brutal: 4px 4px 0 #0b0b0b;
+  --shadow-brutal-lg: 6px 6px 0 #0b0b0b;
+
+  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  /* Headings and short labels only. Never the hero figure on a stat tile: a
+     display face on a number reads as decoration rather than as data. */
+  --font-display: var(--font-archivo-black), var(--font-geist-sans), sans-serif;
+
+  /* Motion. Two easings, and they mean different things: --ease-out is the
+     workhorse for anything arriving or leaving, --ease-spring overshoots
+     slightly and is reserved for direct manipulation (a tab you pressed, a
+     sheet you pulled up) where the overshoot reads as physical response rather
+     than as decoration. */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  /* Asymmetric on purpose: old content should leave quickly so it stops
+     competing for attention, new content should arrive slower so there is time
+     to register it. */
+  --dur-exit: 140ms;
+  --dur-enter: 220ms;
+
+  /* The bottom tab bar's height, so page padding and the sheet's resting
+     offset can both refer to one number instead of guessing at it. */
+  --tab-bar-h: 4.25rem;
+}
+
+:root {
+  /* Chart series steps, validated with the dataviz validator against THIS app's
+     chart surface (--color-paper, #fffdf7) rather than a reference surface —
+     contrast only means something against the background a chart actually
+     renders on. Both clear 3:1, and the pair clears the CVD and normal-vision
+     floors (worst ΔE 23.0 protan / 32.4 normal).
+
+     Same hue families as --color-sky and --color-coral, stepped down until they
+     passed. The palette above could not be reused directly: it is built for ink
+     text sitting ON a fill, which needs light tints, whereas a bar is a mark
+     sitting NEXT TO a light surface and has to be dark enough to separate from
+     it. Same hues, different job, different steps.
 
      One measure per chart, so these two never share a plot; they are separate
      hues so two charts side by side don't read as one series. */
-  --chart-blue: #2a78d6;
-  --chart-orange: #eb6834;
-  /* A week with no activity: a baseline stub, not a series color. */
-  --chart-empty: rgba(11, 11, 11, 0.16);
+  --chart-blue: #1f9bd1;
+  --chart-orange: #f0512f;
+  /* A week with no activity: a baseline stub, not a series colour. */
+  --chart-empty: rgba(11, 11, 11, 0.22);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@layer base {
+  html {
+    /* Kills the ~300ms synthetic click delay without disabling pinch-zoom the
+       way `touch-action: none` would. */
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  body {
+    background: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* Installed as a PWA this is a full-screen app, not a document: rubber-band
+       overscroll past the top exposes the browser's own background behind the
+       canvas and reads as a rendering fault. */
+    overscroll-behavior-y: none;
+  }
 
-    /* Selected for the dark surface, not flipped from the light steps. */
-    --chart-blue: #3987e5;
-    --chart-orange: #d95926;
-    --chart-empty: rgba(255, 255, 255, 0.18);
+  /* The grey flash Android paints on tap. Every interactive surface here has a
+     real :active state (see nb-press), so the default is redundant AND wrong —
+     it ignores the border radius and flashes a rectangle over a rounded card. */
+  a,
+  button,
+  summary,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* One focus treatment for the whole app. Everything sits on a light fill, so
+     an ink ring reads everywhere and no component needs its own override. It is
+     3px because the borders it has to out-shout are already 2px. */
+  :focus-visible {
+    outline: 3px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-lemon);
+    color: var(--color-ink);
+  }
+
+  /* Ink on a light fill in both states, so the swatch never has to explain
+     itself with a label. */
+  ::placeholder {
+    color: color-mix(in oklab, var(--color-ink) 45%, transparent);
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  /* The scaffold hardcodes Arial here, which silently defeats the Geist font
-     loaded in layout.tsx. Use the theme variable it actually sets up. */
-  font-family: var(--font-sans), system-ui, sans-serif;
+/**
+ * The press.
+ *
+ * A brutalist control has nowhere to go but into its own shadow: it slides along
+ * the shadow's diagonal and shortens the shadow by the same amount, and :active
+ * lands it flush. Pair with `shadow-brutal` (`nb-press-sm` with
+ * `shadow-brutal-sm`) — the offsets are matched to those shadows, so mixing them
+ * leaves a control floating or already-pressed at rest.
+ *
+ * THE HOVER HALF IS BEHIND `@media (hover: hover)` AND THAT IS NOT A NICETY.
+ * Touch browsers synthesise :hover on tap and leave it applied until you tap
+ * something else — so an unguarded hover rule leaves every button you have ever
+ * pressed stuck two pixels into its own shadow, which on a page of cards reads
+ * as random misalignment rather than as state. :active is the touch feedback and
+ * it stays unconditional.
+ *
+ * Uses the standalone `translate` property rather than `transform` so it
+ * composes with Tailwind's transform utilities instead of overwriting them.
+ */
+@utility nb-press {
+  transition:
+    translate var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      translate: 2px 2px;
+      box-shadow: 2px 2px 0 #0b0b0b;
+    }
+  }
+  &:active:not(:disabled) {
+    translate: 4px 4px;
+    box-shadow: 0 0 0 #0b0b0b;
+  }
+}
+
+@utility nb-press-sm {
+  transition:
+    translate var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+  @media (hover: hover) {
+    &:hover:not(:disabled) {
+      translate: 1px 1px;
+      box-shadow: 1px 1px 0 #0b0b0b;
+    }
+  }
+  &:active:not(:disabled) {
+    translate: 2px 2px;
+    box-shadow: 0 0 0 #0b0b0b;
+  }
+}
+
+/**
+ * The same press, driven by an ancestor marked `group`.
+ *
+ * :active applies to the element being pressed and its ANCESTORS, never its
+ * descendants — so a shadowed circle nested inside a tappable <Link> can't react
+ * to `&:active` itself. The raised Scan button needs exactly that shape (the
+ * whole column is the tap target; only the circle moves), hence this variant.
+ */
+@utility nb-press-raise {
+  transition:
+    translate var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+  .group:active & {
+    translate: 4px 4px;
+    box-shadow: 0 0 0 #0b0b0b;
+  }
+  @media (hover: hover) {
+    .group:hover & {
+      translate: 2px 2px;
+      box-shadow: 2px 2px 0 #0b0b0b;
+    }
+  }
+}
+
+/**
+ * A bottom sheet on phones, a centred dialog from `sm` up.
+ *
+ * Built on <dialog> so focus trapping, inertness, Escape-to-close and the
+ * top-layer stacking come from the platform rather than from a hand-rolled
+ * popover. The open/close animation uses @starting-style with
+ * transition-behavior: allow-discrete, which is what lets a `display: none`
+ * element animate IN as well as out — without the discrete half, closing snaps.
+ * Browsers without @starting-style just get an instant open, which is the
+ * pre-animation behaviour and still correct.
+ */
+@utility nb-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 85dvh;
+  margin: 0;
+  padding: 0;
+  border: 2px solid var(--color-ink);
+  border-bottom-width: 0;
+  border-radius: var(--radius-brutal) var(--radius-brutal) 0 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  /* The home-indicator strip, so the last control isn't under it. */
+  padding-bottom: env(safe-area-inset-bottom);
+  opacity: 0;
+  translate: 0 100%;
+  transition:
+    opacity var(--dur-base) var(--ease-out),
+    translate var(--dur-base) var(--ease-out),
+    overlay var(--dur-base) allow-discrete,
+    display var(--dur-base) allow-discrete;
+
+  &[open] {
+    opacity: 1;
+    translate: 0 0;
+  }
+
+  @starting-style {
+    &[open] {
+      opacity: 0;
+      translate: 0 100%;
+    }
+  }
+
+  &::backdrop {
+    background: rgb(11 11 11 / 0.5);
+    opacity: 0;
+    transition:
+      opacity var(--dur-base) var(--ease-out),
+      overlay var(--dur-base) allow-discrete,
+      display var(--dur-base) allow-discrete;
+  }
+  &[open]::backdrop {
+    opacity: 1;
+  }
+  @starting-style {
+    &[open]::backdrop {
+      opacity: 0;
+    }
+  }
+
+  @variant sm {
+    inset: 0;
+    width: min(28rem, 92vw);
+    max-height: min(85dvh, 40rem);
+    margin: auto;
+    border-bottom-width: 2px;
+    border-radius: var(--radius-brutal);
+    padding-bottom: 0;
+    /* From `sm` the sheet stops being a sheet: it scales in place rather than
+       rising from an edge it is no longer attached to. */
+    translate: 0 0;
+    scale: 0.96;
+    transition:
+      opacity var(--dur-base) var(--ease-out),
+      scale var(--dur-base) var(--ease-spring),
+      overlay var(--dur-base) allow-discrete,
+      display var(--dur-base) allow-discrete;
+
+    &[open] {
+      scale: 1;
+    }
+    @starting-style {
+      &[open] {
+        opacity: 0;
+        scale: 0.96;
+      }
+    }
+  }
+}
+
+/* The grab handle. Purely an affordance — the sheet closes by tap-outside,
+   Escape, or its own Cancel; there is no drag gesture to discover. */
+@utility nb-grabber {
+  margin: 0.625rem auto 0;
+  height: 0.3125rem;
+  width: 2.5rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--color-ink) 25%, transparent);
+}
+
+/* Page content arriving. Applied by the shell, not per page. */
+@keyframes nb-rise {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+/* ── View transitions ──────────────────────────────────────────────────────
+   The shell (header + tab bar) is pinned by name so it never travels with the
+   content. A moving header removes the one fixed reference point that tells
+   someone the CONTENT changed rather than the whole app. */
+::view-transition-group(shell-header),
+::view-transition-group(shell-tabs) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(shell-header),
+::view-transition-old(shell-tabs) {
+  /* Without this both copies are briefly painted and the bar appears to
+     double-expose mid-navigation. */
+  display: none;
+}
+::view-transition-new(shell-header),
+::view-transition-new(shell-tabs) {
+  animation: none;
+}
+
+::view-transition-old(root) {
+  animation: var(--dur-exit) var(--ease-out) both nb-vt-out;
+}
+::view-transition-new(root) {
+  animation: var(--dur-enter) var(--ease-out) var(--dur-exit) both nb-vt-in;
+}
+
+@keyframes nb-vt-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes nb-vt-in {
+  from {
+    opacity: 0;
+    translate: 0 6px;
+  }
+}
+
+/**
+ * Reduced motion.
+ *
+ * Travel goes, feedback stays. The press still collapses its shadow, the sheet
+ * still opens, the page still swaps — they just stop moving through space,
+ * which is the part that triggers motion sensitivity. Zeroing the durations
+ * alone would not be enough: the translate is a static offset, so each rule
+ * that moves something has to be neutralised by hand.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+
+  .nb-press:hover,
+  .nb-press:active,
+  .nb-press-sm:hover,
+  .nb-press-sm:active,
+  .group:hover .nb-press-raise,
+  .group:active .nb-press-raise {
+    translate: none;
+  }
+
+  .nb-sheet,
+  .nb-sheet[open] {
+    translate: 0 0;
+    scale: 1;
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-group(*) {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+  }
 }

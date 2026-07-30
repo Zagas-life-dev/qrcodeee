@@ -38,9 +38,11 @@ export default async function NotificationsPage() {
   const unreadIds = notifications.filter((n) => !n.read_at).map((n) => n.id);
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="font-display text-3xl leading-none tracking-tight">
+          Notifications
+        </h1>
         {unreadIds.length > 0 ? <MarkAllReadButton /> : null}
       </div>
 
@@ -48,12 +50,12 @@ export default async function NotificationsPage() {
       <MarkOnOpen ids={unreadIds} />
 
       {notifications.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-dashed border-current/20 px-4 py-8 text-center text-sm opacity-70">
+        <p className="mt-8 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center text-sm font-bold">
           Nothing yet. You&apos;ll hear from us when someone you&apos;re
           connected with updates their details.
         </p>
       ) : (
-        <ul className="mt-6 divide-y divide-current/10">
+        <ul className="mt-6 space-y-3">
           {notifications.map((notification) => {
             const source = byId.get(notification.source_profile_id);
             const deleted = source?.deleted_at != null;
@@ -61,23 +63,28 @@ export default async function NotificationsPage() {
             const copy = notificationText(notification.type as NotificationType, name);
 
             return (
+              // Read/unread is carried by the FILL, not by opacity: fading a
+              // card on a yellow canvas just makes it muddier, and the sky fill
+              // reads as "new" down a list at a glance.
               <li
                 key={notification.id}
-                className={`flex gap-3 py-4 ${notification.read_at ? "opacity-60" : ""}`}
+                className={`flex gap-3 rounded-brutal border-2 border-ink p-3 shadow-brutal ${
+                  notification.read_at ? "bg-paper" : "bg-sky"
+                }`}
               >
                 {!notification.read_at ? (
                   <span
                     aria-label="Unread"
-                    className="mt-1.5 size-2 shrink-0 rounded-full bg-sky-500"
+                    className="mt-1.5 size-2.5 shrink-0 rounded-full border-2 border-ink bg-coral"
                   />
                 ) : (
-                  <span className="mt-1.5 size-2 shrink-0" />
+                  <span className="mt-1.5 size-2.5 shrink-0" />
                 )}
 
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">{copy.title}</p>
-                  <p className="mt-0.5 text-sm opacity-70">{copy.body}</p>
-                  <p className="mt-1 text-xs opacity-50">
+                  <p className="font-display text-sm">{copy.title}</p>
+                  <p className="mt-1 text-sm font-medium">{copy.body}</p>
+                  <p className="mt-1.5 text-xs font-bold text-ink/70">
                     {relativeTime(notification.created_at)}
                   </p>
 
@@ -91,7 +98,7 @@ export default async function NotificationsPage() {
                       <SaveContactButton
                         profileId={source.id}
                         name={source.name}
-                        className="rounded-md border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5 disabled:opacity-50"
+                        className="min-h-10 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
                       />
                     </div>
                   ) : null}
@@ -104,7 +111,7 @@ export default async function NotificationsPage() {
 
       <Link
         href="/connections"
-        className="mt-8 inline-flex rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+        className="mt-8 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
       >
         Your connections
       </Link>

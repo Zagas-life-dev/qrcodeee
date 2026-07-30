@@ -5,6 +5,8 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/client";
 
+import { BellIcon } from "./nav-icons";
+
 /**
  * Bell + unread badge (§5.5).
  *
@@ -49,15 +51,18 @@ export function NotificationBell({ userId, initialCount }: { userId: string; ini
   return (
     <Link
       href="/notifications"
-      className="relative ml-auto rounded-md px-2.5 py-1.5 opacity-70 transition hover:bg-current/5 hover:opacity-100"
+      // A square 44px target rather than padding around an 18px glyph, which
+      // came out 34px tall — under the touch minimum, and this is the only
+      // control in the header on a phone.
+      className="relative ml-auto flex size-11 shrink-0 items-center justify-center rounded-brutal border-2 border-ink bg-paper shadow-brutal-sm nb-press-sm"
       aria-label={count > 0 ? `Notifications, ${count} unread` : "Notifications"}
     >
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <BellIcon className="size-5" />
       {count > 0 ? (
-        <span className="absolute -right-0.5 -top-0.5 flex min-w-4 items-center justify-center rounded-full bg-sky-500 px-1 text-[10px] font-medium leading-4 text-white">
+        // Pulled inside the button's own bounds: at -top-2 the badge sat above
+        // the header's padding box, where a phone with no notch (or an
+        // installed PWA reporting a zero top inset) clips its upper edge.
+        <span className="absolute -top-1.5 -right-1.5 flex min-w-5 items-center justify-center rounded-full border-2 border-ink bg-coral px-1 text-[10px] font-bold tabular-nums leading-4 text-ink">
           {count > 99 ? "99+" : count}
         </span>
       ) : null}

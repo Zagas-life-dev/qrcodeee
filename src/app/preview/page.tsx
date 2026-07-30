@@ -40,8 +40,10 @@ export default async function PreviewPage() {
 
   if (!profile) {
     return (
-      <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-        <p className="text-sm opacity-70">We couldn&apos;t load your profile.</p>
+      <main className="mx-auto w-full max-w-lg flex-1 px-4 py-12 sm:px-6">
+        <p className="rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+          We couldn&apos;t load your profile.
+        </p>
       </main>
     );
   }
@@ -71,9 +73,11 @@ export default async function PreviewPage() {
   ].filter(Boolean) as string[];
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">How others see you</h1>
-      <p className="mt-1 text-sm opacity-70">
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="font-display text-3xl leading-none tracking-tight">
+        How others see you
+      </h1>
+      <p className="mt-3 text-sm font-medium">
         This is exactly what someone gets after scanning your code — the same
         screen they see, built from the same data.
       </p>
@@ -83,15 +87,15 @@ export default async function PreviewPage() {
       </div>
 
       {gaps.length > 0 ? (
-        <div className="mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-4">
-          <p className="text-sm font-medium">Your profile has {gaps.join(", ")}.</p>
-          <p className="mt-1 text-sm opacity-80">
+        <div className="mt-4 rounded-brutal border-2 border-ink bg-lemon p-4 shadow-brutal">
+          <p className="font-display text-sm">Your profile has {gaps.join(", ")}.</p>
+          <p className="mt-2 text-sm font-medium">
             Anything you leave out shows as &ldquo;Not provided&rdquo; and
             won&apos;t appear on the contact card they save.
           </p>
           <Link
             href="/profile"
-            className="mt-3 inline-flex rounded-md border border-current/20 px-3 py-1.5 text-sm transition hover:bg-current/5"
+            className="mt-3 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
           >
             Fill in the gaps
           </Link>
@@ -99,21 +103,28 @@ export default async function PreviewPage() {
       ) : null}
 
       <section className="mt-10">
-        <h2 className="text-sm font-semibold uppercase tracking-wide opacity-60">
+        <h2 className="font-display text-xl leading-none tracking-tight">
           Who can see what
         </h2>
 
-        <dl className="mt-3 space-y-3 text-sm">
+        {/* Each tier takes its own fill, widest reach to narrowest. The colour
+            is reinforcement, never the message: every tier states its audience
+            in words, so the three stay distinguishable in greyscale and to a
+            screen reader. */}
+        <dl className="mt-4 space-y-3 text-sm">
           <Tier
+            tone="bg-lime"
             label="Anyone who opens your profile"
             items={["Your name", "Your photo", "Your bio", ...publicFields.map((f) => f.label)]}
           />
           <Tier
+            tone="bg-sky"
             label="Only people you've connected with"
             items={["Your phone number", "Your email address"]}
             note="These stay hidden until someone scans your code. Blocking someone takes them away again."
           />
           <Tier
+            tone="bg-lilac"
             label="Nobody but you"
             items={privateFields.map((f) => f.label)}
             empty="You haven't marked any custom fields private."
@@ -125,13 +136,13 @@ export default async function PreviewPage() {
       <div className="mt-10 flex flex-wrap gap-2">
         <Link
           href="/profile"
-          className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+          className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press"
         >
           Edit profile
         </Link>
         <Link
           href="/qr"
-          className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+          className="rounded-brutal border-2 border-ink bg-paper px-4 py-2 text-sm font-bold shadow-brutal nb-press"
         >
           Your QR code
         </Link>
@@ -141,32 +152,34 @@ export default async function PreviewPage() {
 }
 
 function Tier({
-  label, items, note, empty,
+  tone, label, items, note, empty,
 }: {
+  /** The tier's fill, as a Tailwind class — see the note at the call site. */
+  tone: string;
   label: string;
   items: string[];
   note?: string;
   empty?: string;
 }) {
   return (
-    <div className="rounded-lg border border-current/15 p-3">
-      <dt className="text-sm font-medium">{label}</dt>
-      <dd className="mt-1.5">
+    <div className={`rounded-brutal border-2 border-ink p-3 shadow-brutal ${tone}`}>
+      <dt className="font-display text-sm">{label}</dt>
+      <dd className="mt-2">
         {items.length > 0 ? (
           <ul className="flex flex-wrap gap-1.5">
             {items.map((item) => (
               <li
                 key={item}
-                className="rounded-full border border-current/15 px-2 py-0.5 text-xs opacity-80"
+                className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold"
               >
                 {item}
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-xs opacity-50">{empty}</p>
+          <p className="text-xs font-medium">{empty}</p>
         )}
-        {note ? <p className="mt-2 text-xs opacity-60">{note}</p> : null}
+        {note ? <p className="mt-2.5 text-xs font-medium">{note}</p> : null}
       </dd>
     </div>
   );

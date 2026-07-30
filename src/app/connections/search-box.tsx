@@ -37,10 +37,10 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Search by name"
         aria-label="Search your connections"
-        className="w-full rounded-md border border-current/15 bg-transparent px-3 py-2 text-sm"
+        className="min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium shadow-brutal-sm sm:text-sm"
       />
       {isPending ? (
-        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs opacity-50">
+        <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full border-2 border-ink bg-lemon px-2 py-0.5 text-xs font-bold">
           Searching…
         </span>
       ) : null}

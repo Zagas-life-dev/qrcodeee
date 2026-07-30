@@ -45,34 +45,37 @@ export default async function ProfilePage() {
     // haven't been applied or handle_new_user() failed — worth saying plainly
     // rather than rendering an empty form that silently can't save.
     return (
-      <main className="flex flex-1 items-center justify-center px-6 py-16">
-        <p className="max-w-sm text-sm opacity-70">
+      <main className="flex flex-1 items-center justify-center px-4 py-16 sm:px-6">
+        <p className="max-w-sm rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-medium shadow-brutal">
           We couldn&apos;t load your profile. If this is a fresh environment,
-          check that the migrations in <code>supabase/migrations</code> have been
-          applied.
+          check that the migrations in{" "}
+          <code className="font-mono font-bold">supabase/migrations</code> have
+          been applied.
         </p>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <header className="flex items-start justify-between gap-4">
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <header className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Your profile</h1>
-          <p className="mt-1 text-sm opacity-70">{user.email}</p>
+          <h1 className="font-display text-3xl leading-none tracking-tight">
+            Your profile
+          </h1>
+          <p className="mt-2 text-sm font-medium wrap-break-word">{user.email}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           <Link
             href="/preview"
-            className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+            className="flex min-h-11 items-center rounded-brutal border-2 border-ink bg-sky px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
           >
             Preview
           </Link>
           <form action={signOut}>
             <button
               type="submit"
-              className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100"
+              className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
             >
               Sign out
             </button>

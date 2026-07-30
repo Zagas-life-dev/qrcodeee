@@ -23,15 +23,30 @@ const CATEGORIES: { value: ReportCategory; label: string }[] = [
 
 type Props = { connectionId: string; profileId: string; name: string };
 
+/**
+ * Per-connection actions, as a bottom sheet.
+ *
+ * This was a <details> dropdown, which is a pointer pattern: a 224px panel
+ * anchored to a 28px summary, opening downward off the bottom of the last row
+ * in the list, with menu items barely half the minimum touch target. On a phone
+ * it was reliably easier to hit the wrong row than the right item.
+ *
+ * A <dialog> keeps everything the <details> was chosen for — focus trapping,
+ * Escape, inertness behind it, no z-index fights — because all of that is the
+ * platform's, not the element's. What changes is that it can be a full-width
+ * sheet at the bottom of the screen (see `nb-sheet`), where the items are
+ * thumb-sized and anchored to the same edge every time regardless of which row
+ * opened it.
+ */
 export function ConnectionActions({ connectionId, profileId, name }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [confirming, setConfirming] = useState<"disconnect" | "block" | null>(null);
-  const menuRef = useRef<HTMLDetailsElement>(null);
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const menuRef = useRef<HTMLDialogElement>(null);
+  const reportRef = useRef<HTMLDialogElement>(null);
 
-  function close() {
-    if (menuRef.current) menuRef.current.open = false;
+  function closeMenu() {
+    menuRef.current?.close();
     setConfirming(null);
   }
 
@@ -40,49 +55,53 @@ export function ConnectionActions({ connectionId, profileId, name }: Props) {
       const result = await action();
       if (result.ok) toast.success(result.message ?? "Done");
       else toast.error(result.message);
-      close();
+      closeMenu();
       router.refresh();
     });
   }
 
   return (
     <>
-      {/* <details> rather than a custom popover: it gets keyboard support, focus
-          behaviour and Escape-to-close from the platform for free. */}
-      <details ref={menuRef} className="relative shrink-0">
-        <summary
-          className="cursor-pointer list-none rounded-md border border-current/15 px-2 py-1 text-xs opacity-70 transition hover:bg-current/5 hover:opacity-100 [&::-webkit-details-marker]:hidden"
-          aria-label={`Actions for ${name}`}
-        >
-          •••
-        </summary>
+      <button
+        type="button"
+        onClick={() => menuRef.current?.showModal()}
+        aria-label={`Actions for ${name}`}
+        aria-haspopup="dialog"
+        className="flex size-11 shrink-0 items-center justify-center rounded-brutal border-2 border-ink bg-paper text-base font-bold shadow-brutal-sm nb-press-sm"
+      >
+        <span aria-hidden>•••</span>
+      </button>
 
-        <div className="absolute right-0 z-10 mt-1 w-56 rounded-lg border border-current/15 bg-[var(--background)] p-1 shadow-lg">
-          {confirming === "disconnect" ? (
-            <Confirm
-              // Says what actually happens, including the part users get wrong:
-              // disconnecting cannot claw back a contact they already saved.
-              question={`Disconnect from ${name}?`}
-              detail="They stay in your phone's contacts — that's out of our reach. You can reconnect by scanning again."
-              confirmLabel="Disconnect"
-              pending={isPending}
-              onCancel={() => setConfirming(null)}
-              onConfirm={() => run(() => disconnect(connectionId))}
-            />
-          ) : confirming === "block" ? (
-            <Confirm
-              question={`Block ${name}?`}
-              detail="You'll disappear from each other entirely and neither of you can reconnect. Your connection is kept, so unblocking restores it."
-              confirmLabel="Block"
-              destructive
-              pending={isPending}
-              onCancel={() => setConfirming(null)}
-              onConfirm={() => run(() => blockProfile(profileId))}
-            />
-          ) : (
-            <ul className="text-sm">
+      <Sheet ref={menuRef} onClose={() => setConfirming(null)}>
+        {confirming === "disconnect" ? (
+          <Confirm
+            // Says what actually happens, including the part users get wrong:
+            // disconnecting cannot claw back a contact they already saved.
+            question={`Disconnect from ${name}?`}
+            detail="They stay in your phone's contacts — that's out of our reach. You can reconnect by scanning again."
+            confirmLabel="Disconnect"
+            pending={isPending}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => run(() => disconnect(connectionId))}
+          />
+        ) : confirming === "block" ? (
+          <Confirm
+            question={`Block ${name}?`}
+            detail="You'll disappear from each other entirely and neither of you can reconnect. Your connection is kept, so unblocking restores it."
+            confirmLabel="Block"
+            destructive
+            pending={isPending}
+            onCancel={() => setConfirming(null)}
+            onConfirm={() => run(() => blockProfile(profileId))}
+          />
+        ) : (
+          <>
+            <h2 className="px-1 pb-1 font-display text-lg leading-tight">{name}</h2>
+            <ul className="mt-3 space-y-2">
               <li>
-                <MenuButton onClick={() => setConfirming("disconnect")}>Disconnect</MenuButton>
+                <MenuButton onClick={() => setConfirming("disconnect")}>
+                  Disconnect
+                </MenuButton>
               </li>
               <li>
                 <MenuButton onClick={() => setConfirming("block")}>Block</MenuButton>
@@ -90,24 +109,27 @@ export function ConnectionActions({ connectionId, profileId, name }: Props) {
               <li>
                 <MenuButton
                   onClick={() => {
-                    close();
-                    dialogRef.current?.showModal();
+                    closeMenu();
+                    reportRef.current?.showModal();
                   }}
                 >
                   Report
                 </MenuButton>
               </li>
             </ul>
-          )}
-        </div>
-      </details>
+            <button
+              type="button"
+              onClick={closeMenu}
+              className="mt-4 min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+            >
+              Cancel
+            </button>
+          </>
+        )}
+      </Sheet>
 
-      <dialog
-        ref={dialogRef}
-        className="m-auto w-[min(28rem,92vw)] rounded-lg border border-current/15 bg-[var(--background)] p-0 text-[var(--foreground)] backdrop:bg-black/50"
-      >
+      <Sheet ref={reportRef}>
         <form
-          className="p-5"
           onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);
@@ -117,17 +139,17 @@ export function ConnectionActions({ connectionId, profileId, name }: Props) {
               const result = await reportProfile(profileId, category, notes);
               if (result.ok) toast.success(result.message ?? "Report sent");
               else toast.error(result.message);
-              dialogRef.current?.close();
+              reportRef.current?.close();
             });
           }}
         >
-          <h2 className="text-base font-semibold">Report {name}</h2>
-          <p className="mt-1 text-sm opacity-70">
-            A person reviews every report. Reporting doesn&apos;t block them —
-            do that separately if you want them gone straight away.
+          <h2 className="font-display text-lg leading-none">Report {name}</h2>
+          <p className="mt-2 text-sm font-medium">
+            A person reviews every report. Reporting doesn&apos;t block them — do
+            that separately if you want them gone straight away.
           </p>
 
-          <label className="mt-4 block text-sm font-medium" htmlFor="category">
+          <label className="mt-4 block font-display text-sm" htmlFor="category">
             What&apos;s wrong?
           </label>
           <select
@@ -135,56 +157,93 @@ export function ConnectionActions({ connectionId, profileId, name }: Props) {
             name="category"
             required
             defaultValue="spam"
-            className="mt-1 w-full rounded-md border border-current/15 bg-transparent px-2.5 py-2 text-sm"
+            className="mt-1.5 min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium shadow-brutal-sm"
           >
             {CATEGORIES.map((c) => (
-              <option key={c.value} value={c.value} className="bg-neutral-900 text-white">
+              <option key={c.value} value={c.value} className="bg-paper text-ink">
                 {c.label}
               </option>
             ))}
           </select>
 
-          <label className="mt-4 block text-sm font-medium" htmlFor="notes">
-            Anything else? <span className="font-normal opacity-60">(optional)</span>
+          <label className="mt-4 block font-display text-sm" htmlFor="notes">
+            Anything else? <span className="font-sans font-medium">(optional)</span>
           </label>
           <textarea
             id="notes"
             name="notes"
             rows={3}
             maxLength={1000}
-            className="mt-1 w-full rounded-md border border-current/15 bg-transparent px-2.5 py-2 text-sm"
+            className="mt-1.5 w-full rounded-brutal border-2 border-ink bg-paper px-3 py-2.5 text-base font-medium shadow-brutal-sm"
           />
 
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-5 flex gap-2">
             <button
               type="button"
-              onClick={() => dialogRef.current?.close()}
-              className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100"
+              onClick={() => reportRef.current?.close()}
+              className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+              className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-lemon px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
             >
               {isPending ? "Sending…" : "Send report"}
             </button>
           </div>
         </form>
-      </dialog>
+      </Sheet>
     </>
   );
 }
 
+/**
+ * The shared sheet shell.
+ *
+ * The click handler is the tap-outside-to-close that <dialog> does not give you:
+ * a click landing on the backdrop reports the dialog itself as its target, which
+ * only holds because the padding lives on the inner wrapper rather than on the
+ * dialog — pad the dialog and its own padding becomes part of the target,
+ * closing the sheet when someone taps just inside its edge.
+ */
+function Sheet({
+  ref,
+  onClose,
+  children,
+}: {
+  ref: React.RefObject<HTMLDialogElement | null>;
+  onClose?: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <dialog
+      ref={ref}
+      onClose={onClose}
+      onClick={(event) => {
+        if (event.target === ref.current) ref.current?.close();
+      }}
+      className="nb-sheet"
+    >
+      <div aria-hidden className="nb-grabber sm:hidden" />
+      <div className="p-4 pb-6 sm:p-5">{children}</div>
+    </dialog>
+  );
+}
+
 function MenuButton({
-  onClick, children,
-}: { onClick: () => void; children: React.ReactNode }) {
+  onClick,
+  children,
+}: {
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full rounded px-2.5 py-1.5 text-left transition hover:bg-current/5"
+      className="min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-4 text-left text-sm font-bold shadow-brutal-sm nb-press-sm"
     >
       {children}
     </button>
@@ -192,7 +251,13 @@ function MenuButton({
 }
 
 function Confirm({
-  question, detail, confirmLabel, destructive, pending, onCancel, onConfirm,
+  question,
+  detail,
+  confirmLabel,
+  destructive,
+  pending,
+  onCancel,
+  onConfirm,
 }: {
   question: string;
   detail: string;
@@ -203,25 +268,27 @@ function Confirm({
   onConfirm: () => void;
 }) {
   return (
-    <div className="p-2">
-      <p className="text-sm font-medium">{question}</p>
-      <p className="mt-1 text-xs opacity-70">{detail}</p>
-      <div className="mt-3 flex justify-end gap-2">
+    <div>
+      <p className="font-display text-base leading-tight">{question}</p>
+      <p className="mt-2 text-sm font-medium">{detail}</p>
+      <div className="mt-5 flex gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="rounded px-2.5 py-1 text-xs opacity-70 transition hover:bg-current/5 hover:opacity-100"
+          className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
         >
           Cancel
         </button>
+        {/* Block is the destructive one and it gets the coral fill. Disconnect
+            is reversible by rescanning, so it stays on paper — the two used to
+            differ only by a border tint, which is not a difference in this
+            system. */}
         <button
           type="button"
           disabled={pending}
           onClick={onConfirm}
-          className={`rounded border px-2.5 py-1 text-xs font-medium transition disabled:opacity-50 ${
-            destructive
-              ? "border-red-500/40 text-red-500 hover:bg-red-500/10"
-              : "border-current/15 hover:bg-current/5"
+          className={`min-h-12 flex-1 rounded-brutal border-2 border-ink px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
+            destructive ? "bg-coral" : "bg-paper"
           }`}
         >
           {pending ? "Working…" : confirmLabel}

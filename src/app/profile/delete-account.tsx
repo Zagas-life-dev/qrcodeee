@@ -12,19 +12,23 @@ export function DeleteAccount() {
   const [typed, setTyped] = useState("");
   const [isPending, startTransition] = useTransition();
 
+  // The only panel in the app that sits on coral at rest. Nothing else is
+  // allowed to, so the fill itself is the warning — this system has no red text
+  // to carry it, and a paper panel with a red-bordered button would read as one
+  // more row of the form above it.
   return (
-    <section className="mt-12 rounded-lg border border-red-500/30 p-4">
-      <h2 className="text-sm font-semibold">Delete your account</h2>
+    <section className="mt-12 rounded-brutal border-2 border-ink bg-coral p-4 shadow-brutal">
+      <h2 className="font-display text-base">Delete your account</h2>
 
       {!open ? (
         <>
-          <p className="mt-1 text-sm opacity-70">
+          <p className="mt-2 text-sm font-medium">
             Removes your photo, bio, phone, email and custom fields permanently.
           </p>
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="mt-3 rounded-md border border-red-500/40 px-3 py-1.5 text-sm text-red-500 transition hover:bg-red-500/10"
+            className="mt-4 min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
           >
             Delete account
           </button>
@@ -35,7 +39,7 @@ export function DeleteAccount() {
               §8 and §1 both matter here: connections deliberately survive as a
               placeholder, and contacts already saved to someone's phone are
               permanently out of reach. */}
-          <ul className="space-y-1.5 text-sm opacity-80">
+          <ul className="space-y-1.5 text-sm font-medium">
             <li>• Your phone, email, bio, photo and custom fields are deleted.</li>
             <li>• Your QR code stops working immediately.</li>
             <li>• You won&apos;t be able to sign in again.</li>
@@ -49,18 +53,18 @@ export function DeleteAccount() {
             </li>
           </ul>
 
-          <label htmlFor="confirm" className="mt-4 block text-sm">
-            Type <span className="font-mono font-semibold">{CONFIRM_WORD}</span> to confirm
+          <label htmlFor="confirm" className="mt-4 block text-sm font-medium">
+            Type <span className="font-mono font-bold">{CONFIRM_WORD}</span> to confirm
           </label>
           <input
             id="confirm"
             value={typed}
             autoComplete="off"
             onChange={(e) => setTyped(e.target.value)}
-            className="mt-1 w-full max-w-48 rounded-md border border-current/15 bg-transparent px-2.5 py-1.5 text-sm"
+            className="mt-1.5 min-h-12 w-full max-w-48 rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium sm:text-sm"
           />
 
-          <div className="mt-4 flex items-center gap-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
               disabled={isPending || typed.trim().toLowerCase() !== CONFIRM_WORD}
@@ -72,7 +76,7 @@ export function DeleteAccount() {
                   toast.error(result.message);
                 })
               }
-              className="rounded-md border border-red-500/40 px-3 py-1.5 text-sm font-medium text-red-500 transition hover:bg-red-500/10 disabled:opacity-40"
+              className="min-h-12 rounded-brutal border-2 border-ink bg-ink px-4 text-sm font-bold text-paper shadow-brutal-sm nb-press-sm disabled:opacity-40"
             >
               {isPending ? "Deleting…" : "Permanently delete"}
             </button>
@@ -82,7 +86,7 @@ export function DeleteAccount() {
                 setOpen(false);
                 setTyped("");
               }}
-              className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100"
+              className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
             >
               Cancel
             </button>

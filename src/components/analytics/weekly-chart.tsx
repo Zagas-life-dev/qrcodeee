@@ -25,12 +25,20 @@ type Props = {
  * Bars rather than a line: the weeks are discrete buckets, not a continuous
  * signal, and a zero week is a real zero rather than a dip between samples.
  *
- * Colors are the validated series steps for this app's actual surfaces
- * (#ffffff / #0a0a0a), not the reference palette's — contrast is only meaningful
- * against the surface a chart really renders on. Both clear 3:1 in both modes.
- * The dark steps are chosen for the dark surface, never an automatic flip of the
- * light ones. There is no theme toggle in this app, so the media query is the
- * whole story; add a [data-theme] scope here if one is ever introduced.
+ * Colors are the validated series steps for this app's actual chart surface
+ * (--color-paper), not the reference palette's — contrast is only meaningful
+ * against the surface a chart really renders on. Both clear 3:1. The app is
+ * light-only, so there is one surface to validate against and no dark steps to
+ * keep in sync.
+ *
+ * THE BRUTALISM STOPS AT THE CARD EDGE. The frame gets the 2px outline and the
+ * hard shadow; the plot inside does not. Outlining each bar would be "a border
+ * drawn around marks to separate them", which the dataviz skill lists as an
+ * anti-pattern — the 2px gap between columns already does that job, and at
+ * twelve columns in a half-width card the borders would out-weigh the data they
+ * surround. The one concession is the baseline: 2px ink rather than a hairline,
+ * legal because it is a single axis rule and this chart draws no gridlines for
+ * it to add noise to.
  */
 export function WeeklyChart({ title, points, unit, hue }: Props) {
   const [active, setActive] = useState<number | null>(null);
@@ -39,10 +47,10 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
   const total = points.reduce((sum, p) => sum + p.value, 0);
 
   return (
-    <figure className="m-0 rounded-lg border border-current/10 p-4">
+    <figure className="m-0 rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
       <figcaption className="flex items-baseline justify-between gap-3">
-        <span className="text-sm font-medium">{title}</span>
-        <span className="text-xs opacity-50 tabular-nums">
+        <span className="font-display text-sm">{title}</span>
+        <span className="text-xs font-medium tabular-nums text-ink/70">
           {total} in 12 weeks
         </span>
       </figcaption>
@@ -54,7 +62,11 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
           a focusable element inside an aria-hidden subtree is a defect, and a
           second copy of the same twelve numbers only makes a screen reader read
           the series twice. */}
-      <div className="relative mt-4">
+      {/* mt-8, not mt-4: the tooltip is anchored to the top of this box and
+          translated fully above it, so anything less and it lands on the
+          figcaption. It only shows on hover, which is exactly why the collision
+          survived the previous design — nothing renders there at rest. */}
+      <div className="relative mt-8">
         <ul
           className="flex h-32 list-none items-end gap-[2px] p-0"
           onMouseLeave={() => setActive(null)}
@@ -96,10 +108,14 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
           })}
         </ul>
 
-        {/* Baseline, recessive. */}
-        <div aria-hidden className="h-px w-full bg-current/15" />
+        {/* The single axis rule. See the note above on why this one is allowed
+            to be 2px when the marks aren't. */}
+        <div aria-hidden className="h-0.5 w-full bg-ink" />
 
-        <div aria-hidden className="mt-1.5 flex justify-between text-[10px] opacity-45">
+        <div
+          aria-hidden
+          className="mt-2 flex justify-between text-[10px] font-bold tabular-nums text-ink/70"
+        >
           <span>{points[0]?.label}</span>
           <span>{points.at(-1)?.label}</span>
         </div>
@@ -107,10 +123,10 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
         {active !== null ? (
           <div
             aria-hidden
-            className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full rounded-md border border-current/15 bg-[var(--background)] px-2 py-1 text-xs whitespace-nowrap shadow-sm"
+            className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full rounded-md border-2 border-ink bg-paper px-2 py-1 text-xs whitespace-nowrap shadow-brutal-sm"
           >
-            <span className="font-medium tabular-nums">{points[active].value}</span>{" "}
-            <span className="opacity-70">
+            <span className="font-bold tabular-nums">{points[active].value}</span>{" "}
+            <span className="font-medium">
               {points[active].value === 1 ? unit : `${unit}s`} · {points[active].full}
             </span>
           </div>

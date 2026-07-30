@@ -72,19 +72,24 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
 
   return (
     <section className="mt-10">
-      <div className="flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-semibold tracking-tight">Custom fields</h2>
-        <span className="text-xs opacity-60">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <h2 className="font-display text-xl leading-none tracking-tight">
+          Custom fields
+        </h2>
+        <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold tabular-nums">
           {order.length} of {MAX_CUSTOM_FIELDS}
         </span>
       </div>
-      <p className="mt-1 text-sm opacity-70">
+      <p className="mt-2 text-sm font-medium">
         Anything else worth sharing — LinkedIn, company, job title. Each one can
         be public or kept private to you.
       </p>
 
       {error ? (
-        <p role="alert" className="mt-4 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm">
+        <p
+          role="alert"
+          className="mt-4 rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-sm font-bold shadow-brutal-sm"
+        >
           {error}
         </p>
       ) : null}
@@ -95,9 +100,12 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
           const dirty = isDirty(field);
 
           return (
-            <li key={field.id} className="rounded-lg border border-current/15 p-3">
+            <li
+              key={field.id}
+              className="rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal"
+            >
               <div className="flex items-start gap-2">
-                <div className="flex flex-col gap-1 pt-1">
+                <div className="flex shrink-0 flex-col gap-1.5">
                   <ArrowButton
                     label={`Move ${field.label} up`}
                     disabled={index === 0 || isPending}
@@ -122,7 +130,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                     onChange={(e) =>
                       setDrafts({ ...drafts, [field.id]: { ...draft, label: e.target.value } })
                     }
-                    className="rounded-md border border-current/15 bg-transparent px-2.5 py-1.5 text-sm"
+                    className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium sm:text-sm"
                   />
                   <input
                     aria-label="Value"
@@ -131,14 +139,17 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                     onChange={(e) =>
                       setDrafts({ ...drafts, [field.id]: { ...draft, value: e.target.value } })
                     }
-                    className="rounded-md border border-current/15 bg-transparent px-2.5 py-1.5 text-sm"
+                    className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium sm:text-sm"
                   />
                 </div>
               </div>
 
-              <div className="mt-2 flex flex-wrap items-center gap-2 pl-9">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 {/* Toggling saves the row's current text too, so a pending edit
                     can't be silently discarded by flipping visibility. */}
+                {/* The fill swaps with the state as well as the word, so the
+                    two visibility modes are distinguishable at a glance down a
+                    list of eight rows rather than only by reading each one. */}
                 <button
                   type="button"
                   disabled={isPending}
@@ -148,12 +159,14 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                       updateCustomField(field.id, draft.label, draft.value, !field.is_public),
                     )
                   }
-                  className="rounded-full border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5 disabled:opacity-50"
+                  className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
+                    field.is_public ? "bg-lime" : "bg-paper"
+                  }`}
                 >
                   {field.is_public ? "Public" : "Private"}
                 </button>
 
-                <span className="text-xs opacity-50">
+                <span className="text-xs font-medium text-ink/70">
                   {field.is_public
                     ? "Visible to anyone who opens your profile"
                     : "Only visible to you"}
@@ -169,7 +182,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                           updateCustomField(field.id, draft.label, draft.value, field.is_public),
                         )
                       }
-                      className="rounded-md border border-current/15 px-2.5 py-1 text-xs font-medium transition hover:bg-current/5 disabled:opacity-50"
+                      className="min-h-9 rounded-brutal border-2 border-ink bg-lemon px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
                     >
                       Save
                     </button>
@@ -178,7 +191,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                     type="button"
                     disabled={isPending}
                     onClick={() => run(() => deleteCustomField(field.id))}
-                    className="rounded-md px-2.5 py-1 text-xs opacity-70 transition hover:bg-red-500/10 hover:text-red-500 hover:opacity-100 disabled:opacity-40"
+                    className="min-h-9 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm hover:bg-coral disabled:opacity-40"
                   >
                     Delete
                   </button>
@@ -212,7 +225,10 @@ function ArrowButton({
       aria-label={label}
       disabled={disabled}
       onClick={onClick}
-      className="rounded border border-current/15 px-1.5 text-xs leading-5 transition hover:bg-current/5 disabled:opacity-25"
+      // Stacked pairs of tiny arrows are the single easiest control to mis-tap
+      // on a phone; size-9 with a gap between them is the floor that stops the
+      // "move up" hitting "move down".
+      className="flex size-9 items-center justify-center rounded-md border-2 border-ink bg-paper text-xs font-bold transition-colors hover:bg-lemon disabled:opacity-25"
     >
       {children}
     </button>
@@ -232,7 +248,7 @@ function AddField({
 
   if (atLimit) {
     return (
-      <p className="mt-4 rounded-lg border border-dashed border-current/15 px-3 py-4 text-sm opacity-60">
+      <p className="mt-4 rounded-brutal border-2 border-dashed border-ink px-3 py-4 text-sm font-bold">
         You&apos;ve reached the limit of {MAX_CUSTOM_FIELDS} custom fields.
         Delete one to add another.
       </p>
@@ -241,7 +257,7 @@ function AddField({
 
   return (
     <form
-      className="mt-4 rounded-lg border border-dashed border-current/25 p-3"
+      className="mt-4 rounded-brutal border-2 border-dashed border-ink p-3"
       onSubmit={(event) => {
         event.preventDefault();
         if (!label.trim()) return;
@@ -258,7 +274,7 @@ function AddField({
           value={label}
           maxLength={MAX_LABEL_LENGTH}
           onChange={(e) => setLabel(e.target.value)}
-          className="rounded-md border border-current/15 bg-transparent px-2.5 py-1.5 text-sm"
+          className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium sm:text-sm"
         />
         <input
           aria-label="New field value"
@@ -266,22 +282,24 @@ function AddField({
           value={value}
           maxLength={MAX_VALUE_LENGTH}
           onChange={(e) => setValue(e.target.value)}
-          className="rounded-md border border-current/15 bg-transparent px-2.5 py-1.5 text-sm"
+          className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium sm:text-sm"
         />
       </div>
-      <div className="mt-2 flex items-center gap-2">
+      <div className="mt-3 flex items-center gap-2">
         <button
           type="button"
           aria-pressed={isPublic}
           onClick={() => setIsPublic(!isPublic)}
-          className="rounded-full border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5"
+          className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm ${
+            isPublic ? "bg-lime" : "bg-paper"
+          }`}
         >
           {isPublic ? "Public" : "Private"}
         </button>
         <button
           type="submit"
           disabled={disabled || !label.trim()}
-          className="ml-auto rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+          className="ml-auto min-h-11 rounded-brutal border-2 border-ink bg-lemon px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
         >
           Add field
         </button>

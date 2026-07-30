@@ -16,7 +16,7 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="shrink-0 rounded-md border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5"
+        className="min-h-11 shrink-0 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
       >
         Unblock
       </button>
@@ -25,7 +25,7 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
 
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="text-xs opacity-60">Sure?</span>
+      <span className="text-xs font-bold">Sure?</span>
       <button
         type="button"
         disabled={isPending}
@@ -38,14 +38,14 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
             router.refresh();
           })
         }
-        className="rounded-md border border-current/15 px-2.5 py-1 text-xs font-medium transition hover:bg-current/5 disabled:opacity-50"
+        className="min-h-11 rounded-brutal border-2 border-ink bg-lime px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
       >
         {isPending ? "…" : "Unblock"}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="rounded-md px-2 py-1 text-xs opacity-60 transition hover:bg-current/5 hover:opacity-100"
+        className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
       >
         No
       </button>

@@ -55,15 +55,15 @@ export function EnableNotifications({ title, body }: Props = {}) {
   if (permission !== "default" || state === "resolved") return null;
 
   return (
-    <div className="mt-6 rounded-lg border border-current/15 p-4">
-      <p className="text-sm font-medium">
+    <div className="mt-6 rounded-brutal border-2 border-ink bg-bubble p-4 shadow-brutal">
+      <p className="font-display text-sm">
         {title ?? "Get notified when your connections update their info"}
       </p>
-      <p className="mt-1 text-sm opacity-70">
+      <p className="mt-2 text-sm font-medium">
         {body ??
           "Phone numbers and email addresses change. We'll let you know when someone you've connected with updates theirs, so your saved contact doesn't go stale."}
       </p>
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-4 flex flex-wrap items-center gap-2">
         <button
           type="button"
           disabled={state === "working"}
@@ -82,14 +82,14 @@ export function EnableNotifications({ title, body }: Props = {}) {
             }
             setState("resolved");
           }}
-          className="rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
         >
           {state === "working" ? "Enabling…" : "Turn on notifications"}
         </button>
         <button
           type="button"
           onClick={() => setState("resolved")}
-          className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100"
+          className="rounded-brutal border-2 border-ink px-3 py-2 text-sm font-bold transition-colors hover:bg-paper"
         >
           Not now
         </button>

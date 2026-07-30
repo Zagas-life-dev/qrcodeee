@@ -65,7 +65,7 @@ export default async function ConnectionPage({
   if (profile.deleted_at) {
     return (
       <Shell title="This account was deleted">
-        <p className="text-sm opacity-70">
+        <p className="rounded-brutal border-2 border-ink bg-paper p-3 text-sm font-medium shadow-brutal">
           You&apos;re still connected, but there&apos;s no contact information to
           save any more.
         </p>
@@ -98,19 +98,21 @@ export default async function ConnectionPage({
 
 function Shell({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <main className="mx-auto w-full max-w-md flex-1 px-6 py-12">
-      <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-      <div className="mt-3">{children}</div>
+    <main className="mx-auto w-full max-w-md flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="font-display text-2xl leading-tight tracking-tight text-balance">
+        {title}
+      </h1>
+      <div className="mt-4">{children}</div>
       <div className="mt-8 flex flex-wrap gap-2">
         <Link
           href="/connections"
-          className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
         >
           Your connections
         </Link>
         <Link
           href="/scan"
-          className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
         >
           Scan another
         </Link>

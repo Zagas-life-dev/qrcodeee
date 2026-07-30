@@ -21,35 +21,44 @@ export default async function BlockedPage() {
   const { data: blocked, error } = await supabase.rpc("list_blocked");
 
   return (
-    <main className="mx-auto w-full max-w-lg flex-1 px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Blocked</h1>
-      <p className="mt-1 text-sm opacity-70">
+    <main className="mx-auto w-full max-w-lg flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <h1 className="font-display text-3xl leading-none tracking-tight">Blocked</h1>
+      <p className="mt-3 text-sm font-medium">
         Blocking hides you from each other completely and stops either of you
         reconnecting. Your connection isn&apos;t deleted — unblocking brings it
         back.
       </p>
 
       {error ? (
-        <p className="mt-6 text-sm opacity-70">We couldn&apos;t load your block list.</p>
+        <p className="mt-6 rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+          We couldn&apos;t load your block list.
+        </p>
       ) : (blocked ?? []).length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-current/20 px-4 py-8 text-center text-sm opacity-70">
+        <p className="mt-6 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center text-sm font-bold">
           You haven&apos;t blocked anyone.
         </p>
       ) : (
-        <ul className="mt-6 divide-y divide-current/10">
+        <ul className="mt-6 space-y-3">
           {(blocked ?? []).map((person) => (
-            <li key={person.profile_id} className="flex items-center gap-3 py-3">
+            <li
+              key={person.profile_id}
+              className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal"
+            >
               {person.photo_url ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={person.photo_url} alt="" className="size-10 rounded-full object-cover" />
+                <img
+                  src={person.photo_url}
+                  alt=""
+                  className="size-10 shrink-0 rounded-full border-2 border-ink object-cover"
+                />
               ) : (
-                <div className="flex size-10 items-center justify-center rounded-full border border-current/15 text-sm opacity-40">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-lilac font-display text-sm">
                   {person.name.charAt(0).toUpperCase()}
                 </div>
               )}
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{person.name}</p>
-                <p className="text-xs opacity-50">
+                <p className="truncate font-display text-sm">{person.name}</p>
+                <p className="text-xs font-medium text-ink/70">
                   Blocked{" "}
                   {new Date(person.blocked_at).toLocaleDateString(undefined, {
                     year: "numeric",
@@ -66,7 +75,7 @@ export default async function BlockedPage() {
 
       <Link
         href="/connections"
-        className="mt-8 inline-flex rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+        className="mt-8 inline-flex rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm"
       >
         Your connections
       </Link>

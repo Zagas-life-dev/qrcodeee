@@ -91,8 +91,8 @@ export function AvatarUpload({ photoUrl, name }: Props) {
   const shown = preview ?? photoUrl;
 
   return (
-    <div className="mt-8 flex items-center gap-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border border-current/15">
+    <div className="mt-8 flex flex-wrap items-center gap-4">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-lilac shadow-brutal">
         {shown ? (
           // A blob: URL from the local file preview can't go through
           // next/image, and this element swaps between blob: and remote. The
@@ -103,25 +103,25 @@ export function AvatarUpload({ photoUrl, name }: Props) {
         ) : (
           <div
             aria-hidden
-            className="flex size-full items-center justify-center text-xl font-medium opacity-40"
+            className="flex size-full items-center justify-center font-display text-2xl"
           >
             {name.trim().charAt(0).toUpperCase() || "?"}
           </div>
         )}
         {busy ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 text-[10px] font-medium text-white">
+          <div className="absolute inset-0 flex items-center justify-center bg-ink/70 text-[10px] font-bold text-paper">
             Saving…
           </div>
         ) : null}
       </div>
 
-      <div className="space-y-2">
+      <div className="min-w-0 space-y-2">
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            className="rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+            className="min-h-11 rounded-brutal border-2 border-ink bg-lime px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
           >
             {photoUrl ? "Change photo" : "Upload photo"}
           </button>
@@ -130,20 +130,23 @@ export function AvatarUpload({ photoUrl, name }: Props) {
               type="button"
               disabled={busy}
               onClick={handleRemove}
-              className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100 disabled:opacity-40"
+              className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-40"
             >
               Remove
             </button>
           ) : null}
         </div>
 
-        <p className="text-xs opacity-60">
+        <p className="text-xs font-medium text-ink/70">
           Always public — anyone who opens your profile can see it. JPEG, PNG,
           WebP, GIF or AVIF, up to 5MB.
         </p>
 
         {error ? (
-          <p role="alert" className="text-xs text-red-500">
+          <p
+            role="alert"
+            className="rounded-brutal border-2 border-ink bg-coral px-2.5 py-1.5 text-xs font-bold"
+          >
             {error}
           </p>
         ) : null}

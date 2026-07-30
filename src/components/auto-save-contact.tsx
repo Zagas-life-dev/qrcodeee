@@ -41,12 +41,12 @@ export function AutoSaveContact({
         profileId={profileId}
         name={name}
         autoFocus
-        className="w-full rounded-md border border-current/25 bg-current/5 px-3 py-2.5 text-sm font-medium transition hover:bg-current/10 disabled:opacity-50"
+        className="w-full rounded-brutal border-2 border-ink bg-lime px-3 py-3 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
       >
         {auto ? `Open ${name}'s contact again` : `Save ${name} to contacts`}
       </SaveContactButton>
       {auto ? (
-        <p className="mt-2 text-xs opacity-60">
+        <p className="mt-3 text-xs font-medium text-ink/70">
           Your contacts should have opened. If nothing appeared, tap above.
         </p>
       ) : null}

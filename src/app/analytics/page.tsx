@@ -28,9 +28,11 @@ export default async function AnalyticsPage() {
 
   if (error || !stats) {
     return (
-      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
-        <p className="mt-3 text-sm opacity-70">We couldn&apos;t load your stats.</p>
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+        <h1 className="font-display text-3xl leading-none tracking-tight">Analytics</h1>
+        <p className="mt-4 rounded-brutal border-2 border-ink bg-coral p-4 text-sm font-bold shadow-brutal">
+          We couldn&apos;t load your stats.
+        </p>
       </main>
     );
   }
@@ -45,25 +47,25 @@ export default async function AnalyticsPage() {
   const delta = stats.new_30d - stats.new_prev_30d;
 
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-12">
-      <div className="flex items-baseline justify-between gap-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Analytics</h1>
+    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="flex flex-wrap items-baseline justify-between gap-4">
+        <h1 className="font-display text-3xl leading-none tracking-tight">Analytics</h1>
         {stats.first_connection_at ? (
-          <span className="text-xs opacity-50">
+          <span className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold">
             Since {longDate(stats.first_connection_at)}
           </span>
         ) : null}
       </div>
 
       {stats.active === 0 && stats.scans_total === 0 ? (
-        <div className="mt-8 rounded-lg border border-dashed border-current/20 px-4 py-10 text-center">
-          <p className="text-sm opacity-70">
+        <div className="mt-8 rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center">
+          <p className="text-sm font-bold">
             Nothing to measure yet. Once people start scanning your code, your
             growth and reach show up here.
           </p>
           <Link
             href="/qr"
-            className="mt-4 inline-flex rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5"
+            className="mt-4 inline-flex rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press"
           >
             Show your code
           </Link>
@@ -115,9 +117,11 @@ export default async function AnalyticsPage() {
           </section>
 
           {/* The part with a next step attached. */}
-          <section className="mt-8">
-            <h2 className="text-sm font-medium">Worth doing something about</h2>
-            <ul className="mt-3 divide-y divide-current/10">
+          <section className="mt-10">
+            <h2 className="font-display text-xl leading-none tracking-tight">
+              Worth doing something about
+            </h2>
+            <ul className="mt-4 space-y-3">
               <Action
                 count={stats.unsaved}
                 singular="connection whose contact you haven't saved"
@@ -137,7 +141,7 @@ export default async function AnalyticsPage() {
             </ul>
           </section>
 
-          <p className="mt-8 text-xs opacity-45">
+          <p className="mt-8 text-xs font-medium text-ink/70">
             Scan counts come from your own QR codes, which expire every 15
             minutes — a scan is counted when someone opens one, whether or not it
             became a new connection. We don&apos;t track who saved your card:
@@ -161,23 +165,34 @@ function Stat({
   hero?: boolean;
 }) {
   return (
-    <div className="rounded-lg border border-current/10 p-4">
+    // The hero takes the lemon fill so the headline figure leads the row. The
+    // fill marks WHICH TILE is the headline, it never encodes the value — no
+    // tile's colour changes with its number.
+    <div
+      className={`rounded-brutal border-2 border-ink p-4 shadow-brutal ${
+        hero ? "bg-lemon" : "bg-paper"
+      }`}
+    >
+      {/* Body sans, not font-display, and no tabular-nums: a display face on a
+          figure reads as decoration, and equal-width digits make a standalone
+          number look loose at this size. Neither is a house-style quibble —
+          both are on the dataviz skill's anti-pattern list. */}
       <p
         className={
           hero
-            ? "text-4xl font-semibold tracking-tight"
-            : "text-2xl font-semibold tracking-tight"
+            ? "text-4xl font-bold tracking-tight"
+            : "text-2xl font-bold tracking-tight"
         }
       >
         {value}
       </p>
-      <p className="mt-1 text-xs opacity-60">{label}</p>
+      <p className="mt-1.5 font-display text-xs tracking-wide uppercase">{label}</p>
       {delta ? (
         // Deliberately NOT colored. The sign is already in the string ("+3 vs
         // previous 30"), so direction is carried by text; tinting it red would
         // also mean scoring a quiet month as a failure, which is not what a
         // networking app should tell someone.
-        <p className="mt-1 text-xs opacity-70">{delta}</p>
+        <p className="mt-1 text-xs font-medium">{delta}</p>
       ) : null}
     </div>
   );
@@ -198,23 +213,26 @@ function Action({
   href: string;
   cta: string;
 }) {
+  // A cleared item keeps its card but drops to the lime fill and loses the
+  // button — the row still reads as "checked", rather than vanishing and
+  // leaving the reader unsure whether it was ever there.
   if (count === 0) {
     return (
-      <li className="flex items-center gap-3 py-3">
-        <span className="text-sm opacity-60">{empty}</span>
+      <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-lime p-3 shadow-brutal">
+        <span className="text-sm font-bold">{empty}</span>
       </li>
     );
   }
 
   return (
-    <li className="flex items-center gap-3 py-3">
-      <span className="min-w-0 flex-1 text-sm">
-        <span className="font-medium tabular-nums">{count}</span>{" "}
+    <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal">
+      <span className="min-w-0 flex-1 text-sm font-medium">
+        <span className="font-bold">{count}</span>{" "}
         {count === 1 ? singular : plural}
       </span>
       <Link
         href={href}
-        className="shrink-0 rounded-md border border-current/15 px-2.5 py-1 text-xs transition hover:bg-current/5"
+        className="flex min-h-11 shrink-0 items-center rounded-brutal border-2 border-ink bg-lemon px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
       >
         {cta}
       </Link>

@@ -47,7 +47,7 @@ export function SaveContactButton({
       }}
       className={
         className ??
-        "rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+        "min-h-11 rounded-brutal border-2 border-ink bg-lime px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
       }
     >
       {busy ? "Preparing…" : (children ?? "Save to contacts")}

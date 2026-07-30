@@ -219,15 +219,17 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
   return (
     <div className="mt-8 grid gap-8 lg:grid-cols-[auto_minmax(0,1fr)]">
       <div>
+        {/* The frame is the app's; the fill inside it is the USER's chosen QR
+            background, which is why this one surface doesn't take bg-paper. */}
         <div
           ref={holder}
-          className="rounded-lg border border-current/15 p-3"
+          className="rounded-brutal border-2 border-ink p-3 shadow-brutal"
           style={{ background: style.backgroundColor }}
         />
-        <p className="mt-2 max-w-72 break-all font-mono text-[10px] opacity-40">{url}</p>
+        <p className="mt-3 max-w-72 font-mono text-[10px] break-all text-ink/55">{url}</p>
       </div>
 
-      <div className="space-y-5">
+      <div className="space-y-5 rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
         <Swatch
           label="Dot colour"
           value={style.dotColor}
@@ -252,19 +254,22 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
         />
 
         {contrastPoor ? (
-          <p className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs">
+          <p className="rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-bold">
             These colours are very close together. Scanners will probably
             struggle — try a darker dot colour on a lighter background.
           </p>
         ) : null}
 
         {test.kind === "fail" ? (
-          <p role="alert" className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-xs">
+          <p
+            role="alert"
+            className="rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-xs font-bold"
+          >
             {test.reason} Your saved code is unchanged.
           </p>
         ) : null}
         {test.kind === "pass" ? (
-          <p className="rounded-md border border-current/15 px-3 py-2 text-xs opacity-70">
+          <p className="rounded-brutal border-2 border-ink bg-lime px-3 py-2 text-xs font-bold">
             Decoded correctly. Worth checking it printed and in low light too —
             a code that reads on screen can still fail in the real world.
           </p>
@@ -275,7 +280,7 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className="rounded-md border border-current/15 px-3 py-1.5 text-sm font-medium transition hover:bg-current/5 disabled:opacity-50"
+            className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
           >
             {test.kind === "testing" ? "Testing…" : isPending ? "Saving…" : "Test & save"}
           </button>
@@ -283,23 +288,23 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
             type="button"
             onClick={() => { setStyle(SAFE_DEFAULT_STYLE); setTest({ kind: "idle" }); }}
             disabled={isPending}
-            className="rounded-md px-3 py-1.5 text-sm opacity-70 transition hover:bg-current/5 hover:opacity-100 disabled:opacity-40"
+            className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-40"
           >
             Reset to default
           </button>
-          {message ? <p className="text-sm opacity-70">{message}</p> : null}
+          {message ? <p className="text-sm font-medium">{message}</p> : null}
         </div>
 
-        <div className="border-t border-current/10 pt-5">
+        <div className="border-t-2 border-ink pt-5">
           <button
             type="button"
             onClick={handleRotate}
             disabled={isPending}
-            className="rounded-md border border-current/15 px-3 py-1.5 text-sm transition hover:bg-current/5 disabled:opacity-50"
+            className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
           >
             Generate a new QR code
           </button>
-          <p className="mt-2 max-w-md text-xs opacity-60">
+          <p className="mt-2 max-w-md text-xs font-medium text-ink/70">
             Anything already printed or shared stops working. People you&apos;re
             already connected to are unaffected — connections don&apos;t depend
             on the code.
@@ -315,15 +320,15 @@ function Swatch({
 }: { label: string; value: string; onChange: (v: string) => void }) {
   return (
     <div className="flex items-center gap-3">
-      <label className="w-28 text-sm font-medium" htmlFor={label}>{label}</label>
+      <label className="w-28 shrink-0 font-display text-sm" htmlFor={label}>{label}</label>
       <input
         id={label}
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="size-8 cursor-pointer rounded border border-current/15 bg-transparent"
+        className="size-9 shrink-0 cursor-pointer rounded-md border-2 border-ink bg-paper shadow-brutal-sm nb-press-sm"
       />
-      <span className="font-mono text-xs opacity-50">{value}</span>
+      <span className="font-mono text-xs font-bold text-ink/70">{value}</span>
     </div>
   );
 }
@@ -333,15 +338,15 @@ function Choice<T extends string>({
 }: { label: string; value: T; options: readonly T[]; onChange: (v: T) => void }) {
   return (
     <div className="flex items-center gap-3">
-      <label className="w-28 text-sm font-medium" htmlFor={label}>{label}</label>
+      <label className="w-28 shrink-0 font-display text-sm" htmlFor={label}>{label}</label>
       <select
         id={label}
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="rounded-md border border-current/15 bg-transparent px-2 py-1.5 text-sm"
+        className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-2 text-base font-bold shadow-brutal-sm sm:text-sm"
       >
         {options.map((option) => (
-          <option key={option} value={option} className="bg-neutral-900 text-white">
+          <option key={option} value={option} className="bg-paper text-ink">
             {option.replace(/-/g, " ")}
           </option>
         ))}

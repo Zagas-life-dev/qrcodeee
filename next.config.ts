@@ -49,7 +49,15 @@ function assertBuildEnv() {
 }
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  experimental: {
+    /**
+     * Native page transitions via React's <ViewTransition>, which is the whole
+     * reason this app needs no animation library. Where the browser doesn't
+     * support the View Transitions API the navigation simply doesn't animate —
+     * it never breaks, so there is no fallback to maintain.
+     */
+    viewTransition: true,
+  },
 };
 
 export default function config(phase: string): NextConfig {

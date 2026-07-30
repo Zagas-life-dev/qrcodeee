@@ -125,16 +125,20 @@ export function Scanner() {
 
   return (
     <div className="mt-6">
-      <div className="relative aspect-square w-full overflow-hidden rounded-lg border border-current/15 bg-black">
+      <div className="relative aspect-square w-full overflow-hidden rounded-brutal border-2 border-ink bg-ink shadow-brutal">
         <video ref={videoRef} className="size-full object-cover" playsInline muted />
+        {/* The reticle and the status copy stay white rather than ink: they are
+            drawn over a camera feed, the one surface in the app whose colour
+            isn't known at build time, and white survives a dark frame where ink
+            doesn't. */}
         {status.kind === "scanning" ? (
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-[15%] rounded-lg border-2 border-white/70"
+            className="pointer-events-none absolute inset-[15%] rounded-brutal border-4 border-white"
           />
         ) : null}
         {status.kind !== "scanning" ? (
-          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm text-white/80">
+          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-bold text-white">
             {status.kind === "starting" && "Starting the camera…"}
             {status.kind === "found" && "Got it — connecting…"}
             {status.kind === "error" && status.message}
@@ -142,14 +146,14 @@ export function Scanner() {
         ) : null}
       </div>
 
-      <p role="status" className="mt-3 text-sm opacity-70">
+      <p role="status" className="mt-4 text-sm font-medium">
         {status.kind === "scanning"
           ? "Point the camera at someone's QR Connect code."
           : " "}
       </p>
 
       {lastRejected && status.kind === "scanning" ? (
-        <p className="mt-1 text-xs opacity-50">
+        <p className="mt-2 rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-bold">
           That looks like a QR code, but not a QR Connect one.
         </p>
       ) : null}

@@ -29,10 +29,10 @@ export default async function LoginPage({
   const isScanFlow = next.startsWith("/connect/");
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-16">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-semibold tracking-tight">QR Connect</h1>
-        <p className="mt-2 text-sm opacity-70">
+    <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
+      <div className="w-full max-w-sm rounded-brutal border-2 border-ink bg-paper p-6 shadow-brutal-lg">
+        <h1 className="font-display text-3xl leading-none tracking-tight">QR Connect</h1>
+        <p className="mt-3 text-sm font-medium">
           {isScanFlow
             ? "Sign in to finish connecting — we'll pick up right where you left off."
             : "Share your contact details with a single scan."}
@@ -41,7 +41,7 @@ export default async function LoginPage({
         {errorMessage ? (
           <p
             role="alert"
-            className="mt-6 rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm"
+            className="mt-6 rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-sm font-bold"
           >
             {errorMessage}
           </p>
@@ -51,7 +51,7 @@ export default async function LoginPage({
           <input type="hidden" name="next" value={next} />
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-3 rounded-md border border-current/15 px-4 py-3 text-sm font-medium transition hover:bg-current/5 focus-visible:outline-2 focus-visible:outline-offset-2"
+            className="flex w-full items-center justify-center gap-3 rounded-brutal border-2 border-ink bg-lemon px-4 py-3 text-sm font-bold shadow-brutal nb-press"
           >
             <GoogleMark />
             Continue with Google
