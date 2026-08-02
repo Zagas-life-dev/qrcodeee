@@ -8,7 +8,7 @@ import { AutoSaveContact } from "@/components/auto-save-contact";
 import { ConnectionActions } from "@/components/connection-actions";
 import { Notice, Page, PageHeader, Section } from "@/components/page";
 
-export const metadata = { title: "Connection · QR Connect" };
+export const metadata = { title: "Connection · Skan QR" };
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -145,7 +145,7 @@ function BackLink() {
   return (
     <Link
       href="/connections"
-      className="mb-5 inline-flex min-h-9 items-center gap-1.5 text-sm font-bold"
+      className="mb-5 inline-flex min-h-9 items-center gap-1.5 text-sm font-semibold"
     >
       <span aria-hidden>←</span> Connections
     </Link>

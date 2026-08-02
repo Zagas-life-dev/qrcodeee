@@ -55,8 +55,6 @@ const ANIMATION_CONFIG = {
 
 const clamp = (v: number, min = 0, max = 100) => Math.min(Math.max(v, min), max);
 const round = (v: number, precision = 3) => parseFloat(v.toFixed(precision));
-const adjust = (v: number, fMin: number, fMax: number, tMin: number, tMax: number) =>
-  round(tMin + ((tMax - tMin) * (v - fMin)) / (fMax - fMin));
 
 export type ProfileCardProps = {
   avatarUrl?: string | null;
@@ -161,12 +159,12 @@ function ProfileCardComponent({
       const centerX = percentX - 50;
       const centerY = percentY - 50;
 
+      // Upstream also writes --background-x/y and --pointer-from-center here.
+      // Both fed the foil and the glare, which this app no longer renders, so
+      // they were style writes on every pointer frame that nothing read.
       const properties: Record<string, string> = {
         "--pointer-x": `${percentX}%`,
         "--pointer-y": `${percentY}%`,
-        "--background-x": `${adjust(percentX, 0, 100, 35, 65)}%`,
-        "--background-y": `${adjust(percentY, 0, 100, 35, 65)}%`,
-        "--pointer-from-center": `${clamp(Math.hypot(percentY - 50, percentX - 50) / 50, 0, 1)}`,
         "--pointer-from-top": `${percentY / 100}`,
         "--pointer-from-left": `${percentX / 100}`,
         "--rotate-x": `${round(-(centerX / 5))}deg`,
@@ -393,7 +391,7 @@ function ProfileCardComponent({
         "--icon": iconUrl ? `url(${iconUrl})` : "none",
         "--grain": grainUrl ? `url(${grainUrl})` : "none",
         // Left unset when no accent is given, so the stylesheet's own default
-        // (the app's lemon) applies rather than being overwritten with it here.
+        // (the app's lilac) applies rather than being overwritten with it here.
         ...(accent ? { "--pc-fill": accent } : {}),
       }) as React.CSSProperties,
     [iconUrl, grainUrl, accent],
@@ -408,8 +406,11 @@ function ProfileCardComponent({
       <div ref={shellRef} className="pc-card-shell">
         <section className="pc-card">
           <div className="pc-inside">
-            <div className="pc-shine" />
-            <div className="pc-glare" />
+            {/* Upstream's holographic foil and glare sweep are gone. They tinted
+                the card — and everything seen through the info panel — with
+                four multiplied colour bands that tracked the pointer, which
+                read as discolouration rather than as sheen. The fill is flat
+                now; the tilt and parallax still carry the depth. */}
             <div className="pc-content pc-avatar-content">
               {/* LOCAL 3: upstream hides a broken <img> and leaves a hole. */}
               {showAvatar ? (

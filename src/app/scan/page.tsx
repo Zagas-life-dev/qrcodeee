@@ -5,7 +5,7 @@ import { Page, PageHeader } from "@/components/page";
 
 import { Scanner } from "./scanner";
 
-export const metadata = { title: "Scan · QR Connect" };
+export const metadata = { title: "Scan · Skan QR" };
 
 export default async function ScanPage() {
   const supabase = await createClient();

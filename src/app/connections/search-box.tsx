@@ -40,7 +40,7 @@ export function SearchBox({ initialQuery }: { initialQuery: string }) {
         className="min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-3 text-base font-medium shadow-brutal-sm sm:text-sm"
       />
       {isPending ? (
-        <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full border-2 border-ink bg-lemon px-2 py-0.5 text-xs font-bold">
+        <span className="absolute top-1/2 right-3 -translate-y-1/2 rounded-full border-2 border-ink bg-lilac px-2 py-0.5 text-xs font-semibold">
           Searching…
         </span>
       ) : null}

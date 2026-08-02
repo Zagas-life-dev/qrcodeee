@@ -92,7 +92,7 @@ export function AvatarUpload({ photoUrl, name }: Props) {
 
   return (
     <div className="mt-8 flex flex-wrap items-center gap-4">
-      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-lilac shadow-brutal">
+      <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-sky shadow-brutal">
         {shown ? (
           // A blob: URL from the local file preview can't go through
           // next/image, and this element swaps between blob: and remote. The
@@ -109,7 +109,7 @@ export function AvatarUpload({ photoUrl, name }: Props) {
           </div>
         )}
         {busy ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-ink/70 text-[10px] font-bold text-paper">
+          <div className="absolute inset-0 flex items-center justify-center bg-ink/70 text-[10px] font-semibold text-paper">
             Saving…
           </div>
         ) : null}
@@ -121,7 +121,7 @@ export function AvatarUpload({ photoUrl, name }: Props) {
             type="button"
             disabled={busy}
             onClick={() => inputRef.current?.click()}
-            className="min-h-11 rounded-brutal border-2 border-ink bg-lime px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+            className="min-h-11 rounded-full border-2 border-ink bg-lime px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
           >
             {photoUrl ? "Change photo" : "Upload photo"}
           </button>
@@ -130,7 +130,7 @@ export function AvatarUpload({ photoUrl, name }: Props) {
               type="button"
               disabled={busy}
               onClick={handleRemove}
-              className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-40"
+              className="min-h-11 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-40"
             >
               Remove
             </button>
@@ -145,7 +145,7 @@ export function AvatarUpload({ photoUrl, name }: Props) {
         {error ? (
           <p
             role="alert"
-            className="rounded-brutal border-2 border-ink bg-coral px-2.5 py-1.5 text-xs font-bold"
+            className="rounded-full border-2 border-ink bg-coral px-2.5 py-1.5 text-xs font-semibold"
           >
             {error}
           </p>

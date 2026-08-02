@@ -16,7 +16,7 @@ import { CustomFields } from "./custom-fields";
 import { DeleteAccount } from "./delete-account";
 import { ProfileForm } from "./profile-form";
 
-export const metadata = { title: "Your profile · QR Connect" };
+export const metadata = { title: "Your profile · Skan QR" };
 
 export default async function ProfilePage() {
   const supabase = await createClient();

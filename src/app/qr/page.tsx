@@ -9,7 +9,7 @@ import { ActionLink, Notice, Page, PageHeader } from "@/components/page";
 
 import { QrEditor } from "./qr-editor";
 
-export const metadata = { title: "Your QR code · QR Connect" };
+export const metadata = { title: "Your QR code · Skan QR" };
 
 export default async function QrPage() {
   const supabase = await createClient();

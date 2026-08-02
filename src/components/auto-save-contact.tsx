@@ -51,7 +51,7 @@ export function AutoSaveContact({
         profileId={profileId}
         name={name}
         autoFocus
-        className="w-full rounded-brutal border-2 border-ink bg-lime px-3 py-3 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
+        className="w-full rounded-full border-2 border-ink bg-lime px-3 py-3 text-sm font-semibold shadow-brutal nb-press disabled:opacity-50"
       >
         {opened ? `Open ${name}'s contact again` : `Save ${name} to contacts`}
       </SaveContactButton>

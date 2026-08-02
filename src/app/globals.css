@@ -1,35 +1,88 @@
 @import "tailwindcss";
 
 /**
- * Neo-brutalism (docs/design lang).
+ * Soft neo-brutalism (docs/newdesignlang).
  *
- * The whole system is three moves: a 2px ink outline on every surface, a hard
- * offset shadow with zero blur, and flat saturated fills. No gradients, no
- * blurs, no opacity-based depth — depth is the offset or it isn't there. The
- * corollary is that `opacity` stops being a hierarchy tool: secondary text gets
- * a real weight or size step instead, because a 70%-opacity label on a yellow
- * canvas is just a muddier yellow.
+ * Still three moves — a 2px ink outline on every surface, a hard offset shadow
+ * with zero blur, and flat fills — but every one of them dialled down from the
+ * hard-edged version this replaces. The softening is specific and it is three
+ * things, not a vibe:
  *
- * LIGHT ONLY, DELIBERATELY. Every reference in docs/design lang is built on a
- * cream-and-ink pairing with no dark counterpart — inverting it gives white
- * borders on near-black, which is a different language wearing the same shadow.
- * The `prefers-color-scheme: dark` block that used to live here was removed
- * rather than translated, so there is one set of colours to reason about and
- * chart contrast only has to hold against one surface.
+ *   1. THE SHAPES SOFTENED. 14px → 22px on surfaces, and controls go fully
+ *      round — every button, chip and input in the reference is a pill or a
+ *      circle. This is what takes the aggression out without taking the
+ *      structure out, and it is doing nearly all of the work on its own.
+ *   2. THE TYPE SOFTENED. A chunky ROUNDED display face and a geometric text
+ *      face, in place of the flat-sided grotesque this replaces.
+ *   3. GLASS, NARROWLY. Frosted fills where there is genuinely something behind
+ *      them, and nowhere else. See the Glass block further down for the rule.
+ *
+ * THE COLOUR DID NOT SOFTEN, AND THAT IS DELIBERATE. An earlier pass took the
+ * reference's pastel swatches literally and the result went limp: this language
+ * wants colour that pops, and pastels on a light page have nothing to push
+ * against. So the palette is the original saturated set — a yellow canvas and
+ * six full-strength fills — wearing the new shapes. Rounder, not quieter.
+ *
+ * Nor did the outline or the offset shadow. Blur the shadow or drop the border
+ * and this becomes generic rounded UI — those two are the whole reason it still
+ * reads as brutalism. Depth is the offset or it isn't there, and `opacity` is
+ * still not a hierarchy tool: secondary text gets a real weight or size step
+ * instead, because a 70%-opacity label on a yellow canvas is just a muddier
+ * yellow.
+ *
+ * LIGHT ONLY, DELIBERATELY. Every reference is built on a yellow-and-ink pairing
+ * with no dark counterpart — inverting it gives white borders on near-black,
+ * which is a different language wearing the same shadow.
  */
 @theme {
-  /* Near-black rather than #000: pure black against saturated fills vibrates,
-     and this colour is the border on every surface in the app. */
+  /**
+   * The outline on every surface in the app, and the text on all of them.
+   *
+   * Near-black rather than pure #000, which vibrates against saturated fills.
+   * This draws the border on every card, button and chip here. It clears 19:1 on
+   * paper and never drops below 7.25:1 on a fill (coral, the floor), so AA holds
+   * by construction with room to spare.
+   */
   --color-ink: #0b0b0b;
-  /* Card surface. Warm white, so a card reads as paper laid ON the canvas
-     rather than as a hole punched through it. */
+  /* Card surface. Warm white rather than pure — it sits next to a saturated
+     yellow page all day, and a neutral white next to that reads faintly blue. */
   --color-paper: #fffdf7;
-  /* The page itself. */
+  /**
+   * The page, and the loud half of the brand pair.
+   *
+   * A saturated yellow, not a tint of anything. This is the decision the rest of
+   * the palette answers to, and it cuts two ways:
+   *
+   *   IN ITS FAVOUR — paper separates from it by a mile, so a card is a card
+   *   before you reach its outline. The pastel canvas this replaced was ΔE 2.1
+   *   from white and could not do that at all.
+   *
+   *   THE COST — the warm fills share its hue. `lemon` especially is the same
+   *   family a few steps deeper, so a lemon surface on this page is held apart
+   *   by its outline and its shadow rather than by its colour. That is why
+   *   `primary` is lilac and not lemon: on a yellow page the complement is what
+   *   pops, and the primary action is the one thing that must.
+   */
   --color-canvas: #ffe27f;
+  /* The graph-paper lines. Ink at 6%, not a tinted hue — anything with colour in
+     it turns olive against this yellow. Texture, never content: it must never
+     compete with a real border. */
+  --color-grid: rgb(11 11 11 / 0.06);
 
-  /* Flat fills. Every one is light enough to carry ink text above 12:1, which
-     is what lets any of them take a label without needing a second text
-     colour — the reason this palette is all tints and no deep shades. */
+  /**
+   * Flat fills. Saturated on purpose — this language wants colour that pops, and
+   * a pastel set on a yellow page goes muddy.
+   *
+   * All six carry ink text between 7.25:1 (coral, the floor) and 13.52:1 (lime),
+   * so AA holds everywhere with room to spare and a new fill would have to be
+   * genuinely dark before its label needed a second thought.
+   *
+   * THE STANDING CONSTRAINT: the three warm fills converge under colour-vision
+   * deficiency — lemon/lime, lemon/coral and lime/coral are all close, and
+   * `positive` and `danger` are two of them. No fill may ever be the sole
+   * carrier of a meaning; each already appears with text that states the
+   * condition, and that is what is holding the distinction up.
+   */
   --color-lemon: #ffc93c;
   --color-bubble: #ff8fc7;
   --color-lime: #a8e86a;
@@ -37,7 +90,13 @@
   --color-sky: #86d8f7;
   --color-coral: #ff7060;
 
-  --radius-brutal: 14px;
+  /* Surfaces. Controls do NOT use this — they are `rounded-full`, because every
+     button, chip and input in the reference is a pill or a circle, and a pill
+     is a shape decision rather than a scale of this one. */
+  --radius-brutal: 22px;
+  /* Hero surfaces: the single card on a centred page, the QR frame. Large panels
+     need proportionally more corner or they read as tighter than small ones. */
+  --radius-brutal-lg: 28px;
 
   /* Hex rather than var(--color-ink): these feed `shadow-*` utilities, and an
      unresolved reference here fails silently as "no shadow". */
@@ -45,11 +104,19 @@
   --shadow-brutal: 4px 4px 0 #0b0b0b;
   --shadow-brutal-lg: 6px 6px 0 #0b0b0b;
 
-  --font-sans: var(--font-geist-sans), system-ui, sans-serif;
+  --font-sans: var(--font-outfit), system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
-  /* Headings and short labels only. Never the hero figure on a stat tile: a
-     display face on a number reads as decoration rather than as data. */
-  --font-display: var(--font-archivo-black), var(--font-geist-sans), sans-serif;
+  /**
+   * Headings and short labels only. Never the hero figure on a stat tile: a
+   * display face on a number reads as decoration rather than as data.
+   *
+   * The reference specifies BullyPulpitNF, which is not a webfont. Lilita One is
+   * the closest thing on Google Fonts and matches on the three traits that
+   * actually carry the look — chunky weight, rounded terminals, slightly
+   * condensed — so the outlined treatment in `nb-outline-text` lands the same
+   * way it does in the reference.
+   */
+  --font-display: var(--font-lilita-one), var(--font-outfit), sans-serif;
 
   /* Motion. Two easings, and they mean different things: --ease-out is the
      workhorse for anything arriving or leaving, --ease-spring overshoots
@@ -74,17 +141,21 @@
 }
 
 :root {
-  /* Chart series steps, validated with the dataviz validator against THIS app's
-     chart surface (--color-paper, #fffdf7) rather than a reference surface —
-     contrast only means something against the background a chart actually
-     renders on. Both clear 3:1, and the pair clears the CVD and normal-vision
-     floors (worst ΔE 23.0 protan / 32.4 normal).
+  /* Chart series steps, validated against THIS app's chart surface
+     (--color-paper) rather than a reference surface — contrast only means
+     something against the background a chart actually renders on. Blue clears
+     3.10:1 and orange 3.49:1, both over the 3:1 a mark needs, and blue/orange
+     is the one pairing that survives every form of colour-vision deficiency.
 
-     Same hue families as --color-sky and --color-coral, stepped down until they
-     passed. The palette above could not be reused directly: it is built for ink
-     text sitting ON a fill, which needs light tints, whereas a bar is a mark
+     THE PALETTE ABOVE CANNOT BE REUSED DIRECTLY, and this is the thing to
+     remember before "fixing" these to match the brand: those fills are built
+     for ink text sitting ON them, so they are light tints. A bar is a mark
      sitting NEXT TO a light surface and has to be dark enough to separate from
-     it. Same hues, different job, different steps.
+     it. Same job, different steps.
+
+     Both also clear the canvas comfortably, which matters because a chart card
+     is paper on a saturated yellow page — the bars are doing more of the work
+     of locating the plot than usual.
 
      One measure per chart, so these two never share a plot; they are separate
      hues so two charts side by side don't read as one series. */
@@ -103,7 +174,23 @@
   }
 
   body {
-    background: var(--color-canvas);
+    /**
+     * The canvas and its graph-paper grid — the reference's signature backdrop.
+     *
+     * Two 1px lines repeating on a 32px cell. It scrolls with the page rather
+     * than using `background-attachment: fixed`, which iOS Safari renders by
+     * repainting the whole layer on every scroll frame; a grid that slides with
+     * the content also reads as paper, which is the point.
+     *
+     * `background-color` and `background-image` are set as separate properties,
+     * not folded into the `background` shorthand: the shorthand resets
+     * background-size, and the order it would need is easy to get wrong later.
+     */
+    background-color: var(--color-canvas);
+    background-image:
+      linear-gradient(var(--color-grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-grid) 1px, transparent 1px);
+    background-size: 32px 32px;
     color: var(--color-ink);
     font-family: var(--font-sans);
     /* Installed as a PWA this is a full-screen app, not a document: rubber-band
@@ -131,7 +218,7 @@
   }
 
   ::selection {
-    background: var(--color-lemon);
+    background: var(--color-lilac);
     color: var(--color-ink);
   }
 
@@ -235,7 +322,7 @@
   transition: background-color var(--dur-fast) var(--ease-out);
   &:has(> * > .nb-stretch:active),
   &:has(> .nb-stretch:active) {
-    background-color: var(--color-lemon);
+    background-color: var(--color-lilac);
   }
 }
 
@@ -274,7 +361,7 @@
   padding: 0;
   border: 2px solid var(--color-ink);
   border-bottom-width: 0;
-  border-radius: var(--radius-brutal) var(--radius-brutal) 0 0;
+  border-radius: var(--radius-brutal-lg) var(--radius-brutal-lg) 0 0;
   background: var(--color-paper);
   color: var(--color-ink);
   /* The home-indicator strip, so the last control isn't under it. */
@@ -299,8 +386,14 @@
     }
   }
 
+  /* The page behind a sheet is the clearest case there is of "something is
+     actually back there", so the scrim is frosted rather than merely dimmed —
+     it reads as the app pushed back a layer instead of a grey sheet dropped
+     over it. Kept lighter than the old 0.5 flat: once the backdrop is blurred,
+     the same darkness buries the page instead of receding it. */
   &::backdrop {
-    background: rgb(11 11 11 / 0.5);
+    background: rgb(11 11 11 / 0.38);
+    backdrop-filter: blur(6px);
     opacity: 0;
     transition:
       opacity var(--dur-base) var(--ease-out),
@@ -322,7 +415,7 @@
     max-height: min(85dvh, 40rem);
     margin: auto;
     border-bottom-width: 2px;
-    border-radius: var(--radius-brutal);
+    border-radius: var(--radius-brutal-lg);
     padding-bottom: 0;
     /* From `sm` the sheet stops being a sheet: it scales in place rather than
        rising from an edge it is no longer attached to. */
@@ -344,6 +437,134 @@
       }
     }
   }
+}
+
+/**
+ * ── Glass ─────────────────────────────────────────────────────────────────
+ *
+ * An accent on the brutalism, not a second language. Three rules govern it, and
+ * the first two are the reason this doesn't dissolve the design system.
+ *
+ * 1. GLASS ONLY WHERE SOMETHING IS ACTUALLY BEHIND IT — a photograph, the camera
+ *    feed, or page content scrolling underneath. This is taken from the
+ *    reference rather than invented: on docs/newdesignlang's sign-up board every
+ *    frosted element (the fields, the segmented toggle, the round buttons over
+ *    the video) sits on a photograph, and the moment that same screen reaches
+ *    its cream lower half the controls revert to solid fills with ink outlines.
+ *    Note also which way round they stack — the solid lime pill sits ON the
+ *    glass toggle. Solid on glass, never glass on flat canvas. A blurred panel
+ *    with nothing behind it is just a lighter grey that costs a compositing
+ *    layer to produce.
+ *
+ * 2. THE BLUR GOES IN THE FILL, NEVER IN THE DEPTH. The 2px ink outline stays;
+ *    the zero-blur offset shadow stays. That is the entire integration: a
+ *    brutalist panel whose fill happens to be translucent, not a glass panel
+ *    wearing a border. Soften the shadow to match the fill and the language is
+ *    gone — at which point this is just iOS.
+ *
+ * 3. THE OPACITY IS A CONTRAST FLOOR, NOT A TASTE SETTING. Over media the
+ *    backdrop is unknown at build time, so the fill alone has to carry the text.
+ *    Against the worst case each one can meet — pure black under the paper
+ *    variants, pure white under the ink one — `nb-glass` leaves ink at 10.57:1,
+ *    `nb-glass-chrome` at 12.03:1, and `nb-glass-ink` leaves paper at 7.44:1.
+ *    Thin any of them below about 55% and it fails AA over a dark photo. Do not
+ *    tune these by eye.
+ *
+ * `saturate()` is what separates glass from fog — blur alone greys the backdrop
+ * out, and pulling saturation back up keeps the colour reading through.
+ *
+ * DO NOT ADD `-webkit-backdrop-filter` BY HAND. Lightning CSS prefixes these
+ * from the build targets already, and writing both properties makes it collapse
+ * the pair and emit ONLY the `-webkit-` one — which Chrome does not honour, so
+ * the blur silently disappears everywhere while the translucent fill stays. The
+ * failure looks like "glass is too transparent", not like a missing prefix,
+ * which is what makes it worth a warning. (The `@supports not` test below is
+ * fine: that is a feature query, not a declaration.)
+ */
+@utility nb-glass {
+  background-color: color-mix(in srgb, var(--color-paper) 75%, transparent);
+  backdrop-filter: blur(14px) saturate(1.7);
+
+  /* Firefox before 103 and any engine with the feature switched off would
+     otherwise render this as a semi-transparent panel with the backdrop showing
+     through UNBLURRED, which is illegible rather than merely plain. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-paper);
+  }
+}
+
+/**
+ * Chrome glass: the sticky header and the floating dock.
+ *
+ * Deliberately NOT `nb-glass`, and the difference is legibility rather than
+ * taste. Those two bars pass over the content column, so what is behind them is
+ * body text — and at `nb-glass`'s 14px radius, 16px text stays readable through
+ * the bar and competes with the navigation sitting on it. The fix is mostly the
+ * BLUR, not the opacity: 24px is past the point where a glyph survives, so the
+ * text underneath collapses into a colour wash while the colour itself still
+ * reads through. That is what glass is supposed to do, and a heavier fill alone
+ * would have got there by simply becoming opaque.
+ */
+@utility nb-glass-chrome {
+  background-color: color-mix(in srgb, var(--color-paper) 80%, transparent);
+  backdrop-filter: blur(24px) saturate(1.8);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-paper);
+  }
+}
+
+/** The same panel for dark backdrops — the camera feed, where the content on
+    top is paper-coloured because ink cannot survive an unknown frame. */
+@utility nb-glass-ink {
+  background-color: color-mix(in srgb, var(--color-ink) 70%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: var(--color-ink);
+  }
+}
+
+/**
+ * Reduced transparency is an accessibility setting, not a motion preference —
+ * it exists for people who find translucent layers hard to parse, so the answer
+ * is an opaque fill rather than a weaker blur. The outline and offset are
+ * untouched, so the components look like themselves; they just stop being
+ * see-through.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .nb-glass,
+  .nb-glass-chrome {
+    background-color: var(--color-paper);
+    backdrop-filter: none;
+  }
+  .nb-glass-ink {
+    background-color: var(--color-ink);
+    backdrop-filter: none;
+  }
+}
+
+/**
+ * The reference's headline treatment: paper-filled display type with an ink
+ * contour and the same hard offset the surfaces carry.
+ *
+ * `paint-order: stroke fill` is the whole trick and it is not optional.
+ * -webkit-text-stroke centres the stroke on the glyph outline, so half of it is
+ * painted INSIDE the letter — on a chunky face at 2px that closes the counters
+ * and the word turns to mud. Painting the stroke first and the fill over it
+ * keeps every letterform at its designed weight and puts the contour entirely
+ * outside.
+ *
+ * HERO SCALE ONLY — roughly text-4xl and up. A 2px contour on a 16px label
+ * consumes the letter rather than outlining it, which is the failure mode this
+ * treatment has; it is why `PageHeader` uses solid ink and only a deliberate
+ * hero opts into this.
+ */
+@utility nb-outline-text {
+  color: var(--color-paper);
+  -webkit-text-stroke: 2px var(--color-ink);
+  paint-order: stroke fill;
+  text-shadow: 3px 3px 0 var(--color-ink);
 }
 
 /* The grab handle. Purely an affordance — the sheet closes by tap-outside,

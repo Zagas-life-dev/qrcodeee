@@ -10,7 +10,7 @@ import { EnableNotifications } from "@/components/enable-notifications";
 import { AutoSaveContact } from "@/components/auto-save-contact";
 import { ActionLink, Notice, Page, PageHeader } from "@/components/page";
 
-export const metadata = { title: "Connecting · QR Connect" };
+export const metadata = { title: "Connecting · Skan QR" };
 
 /**
  * Where a scanned QR code lands (§6). Everything the product does happens here:

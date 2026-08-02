@@ -1,6 +1,6 @@
 {
-  "name": "QR Connect",
-  "short_name": "QR Connect",
+  "name": "Skan QR",
+  "short_name": "Skan QR",
   "description": "Share your contact details with a single scan.",
   "start_url": "/qr",
   "scope": "/",

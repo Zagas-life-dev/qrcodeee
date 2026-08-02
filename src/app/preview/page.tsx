@@ -5,7 +5,7 @@ import type { ScannedProfile } from "@/lib/supabase/database.types";
 import { ConnectedProfileCard } from "@/components/connected-profile-card";
 import { ActionLink, Notice, Page, PageHeader, Section } from "@/components/page";
 
-export const metadata = { title: "How others see you · QR Connect" };
+export const metadata = { title: "How others see you · Skan QR" };
 
 /**
  * "What does someone actually get when they scan me?"
@@ -113,7 +113,7 @@ export default async function PreviewPage() {
             note="These stay hidden until someone scans your code. Blocking someone takes them away again."
           />
           <Tier
-            tone="bg-lilac"
+            tone="bg-paper"
             label="Nobody but you"
             items={privateFields.map((f) => f.label)}
             empty="You haven't marked any custom fields private."
@@ -153,7 +153,7 @@ function Tier({
             {items.map((item) => (
               <li
                 key={item}
-                className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-bold"
+                className="rounded-full border-2 border-ink bg-paper px-2.5 py-0.5 text-xs font-semibold"
               >
                 {item}
               </li>

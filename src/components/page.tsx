@@ -49,7 +49,7 @@ export function Page({
 export function CenteredPage({ children }: { children: React.ReactNode }) {
   return (
     <main className="flex flex-1 items-center justify-center px-4 py-12 sm:px-6 sm:py-16">
-      <div className="w-full max-w-sm rounded-brutal border-2 border-ink bg-paper p-6 shadow-brutal-lg">
+      <div className="w-full max-w-sm rounded-brutal-lg border-2 border-ink bg-paper p-6 shadow-brutal-lg">
         {children}
       </div>
     </main>
@@ -139,7 +139,7 @@ export function EmptyState({
 }) {
   return (
     <div className="rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center">
-      <p className="text-sm font-bold text-balance">{children}</p>
+      <p className="text-sm font-semibold text-balance">{children}</p>
       {action ? <div className="mt-4 flex justify-center">{action}</div> : null}
     </div>
   );
@@ -173,7 +173,7 @@ export function Notice({
   return (
     <div
       role={role}
-      className={`rounded-brutal border-2 border-ink p-4 text-sm font-bold shadow-brutal ${NOTICE_TONES[tone]} ${className}`}
+      className={`rounded-brutal border-2 border-ink p-4 text-sm font-semibold shadow-brutal ${NOTICE_TONES[tone]} ${className}`}
     >
       {children}
     </div>
@@ -192,7 +192,7 @@ export function Pill({
 }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-bold ${NOTICE_TONES[tone]} ${className}`}
+      className={`inline-flex items-center rounded-full border-2 border-ink px-2.5 py-0.5 text-xs font-semibold ${NOTICE_TONES[tone]} ${className}`}
     >
       {children}
     </span>
@@ -207,13 +207,20 @@ export function Pill({
 
    Every value below is a complete literal class string, so Tailwind's scanner
    still sees them — build them by concatenating fragments and they vanish from
-   the stylesheet with no error anywhere. */
+   the stylesheet with no error anywhere.
+
+   EVERY ACTION IS A PILL (`rounded-full`, not `rounded-brutal`). That is the
+   softened language's clearest tell: the reference has no rectangular control
+   anywhere in it. It is `rounded-full` rather than a large radius token because
+   a pill has to stay a pill at every height — pin it to 22px and an `lg` action
+   is a pill while an `sm` one is a rounded rectangle, and the set stops looking
+   like one family. */
 
 type ActionTone = "primary" | "neutral" | "positive" | "danger" | "info" | "solid";
 type ActionSize = "sm" | "md" | "lg";
 
 const ACTION_TONES: Record<ActionTone, string> = {
-  primary: "bg-lemon",
+  primary: "bg-lilac",
   neutral: "bg-paper",
   positive: "bg-lime",
   danger: "bg-coral",
@@ -222,13 +229,16 @@ const ACTION_TONES: Record<ActionTone, string> = {
   solid: "bg-ink text-paper",
 };
 
+/* Padding runs wider than it did on the rectangular version, and it has to: a
+   pill's ends curve away from the text baseline, so the same numeric padding
+   leaves visibly less clearance at the corners than a 14px radius did. */
 const ACTION_SIZES: Record<ActionSize, string> = {
   // Below the 44px touch minimum by design: `sm` is for controls that sit in a
   // cluster with generous spacing (a row's Public/Private toggle), never for
   // anything that stands alone.
-  sm: "min-h-9 gap-1.5 px-3.5 text-xs",
-  md: "min-h-11 gap-2 px-4 text-sm",
-  lg: "min-h-12 gap-2 px-5 text-sm",
+  sm: "min-h-9 gap-1.5 px-4 text-xs",
+  md: "min-h-11 gap-2 px-5 text-sm",
+  lg: "min-h-12 gap-2 px-6 text-sm",
 };
 
 /** `lg` carries the full shadow and the deeper press; the rest sit lighter. */
@@ -252,7 +262,7 @@ export function actionClass({
   return [
     // inline-flex + justify-center is what makes min-h-* behave identically on
     // an <a> and a <button>; a bare anchor ignores it and comes out short.
-    "inline-flex items-center justify-center rounded-brutal border-2 border-ink font-bold disabled:opacity-50",
+    "inline-flex items-center justify-center rounded-full border-2 border-ink font-semibold disabled:opacity-50",
     ACTION_TONES[tone],
     ACTION_SIZES[size],
     ACTION_LIFT[size],

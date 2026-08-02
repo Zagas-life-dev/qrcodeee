@@ -16,7 +16,7 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
       <button
         type="button"
         onClick={() => setConfirming(true)}
-        className="min-h-11 shrink-0 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
+        className="min-h-11 shrink-0 rounded-full border-2 border-ink bg-paper px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm"
       >
         Unblock
       </button>
@@ -25,7 +25,7 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
 
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <span className="text-xs font-bold">Sure?</span>
+      <span className="text-xs font-semibold">Sure?</span>
       <button
         type="button"
         disabled={isPending}
@@ -38,14 +38,14 @@ export function UnblockButton({ profileId, name }: { profileId: string; name: st
             router.refresh();
           })
         }
-        className="min-h-11 rounded-brutal border-2 border-ink bg-lime px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+        className="min-h-11 rounded-full border-2 border-ink bg-lime px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
       >
         {isPending ? "…" : "Unblock"}
       </button>
       <button
         type="button"
         onClick={() => setConfirming(false)}
-        className="min-h-11 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm"
+        className="min-h-11 rounded-full border-2 border-ink bg-paper px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm"
       >
         No
       </button>

@@ -1,13 +1,22 @@
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
-import { Archivo_Black, Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Lilita_One, Outfit } from "next/font/google";
 import "./globals.css";
 
 import { AppListeners } from "@/components/app-listeners";
 import { AppShell } from "@/components/app-shell";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+/**
+ * The text face, named outright by docs/newdesignlang's type sheet.
+ *
+ * Loaded as a variable font (no `weight`), which is what lets the UI use 400 for
+ * body, 500 for the labels that carry secondary hierarchy and 600 for anything
+ * emphatic, all from one file. That matters more here than it did under the old
+ * face: this language forbids opacity as a hierarchy tool, so weight steps are
+ * doing the work instead and there have to be enough of them.
+ */
+const outfit = Outfit({
+  variable: "--font-outfit",
   subsets: ["latin"],
 });
 
@@ -17,21 +26,25 @@ const geistMono = Geist_Mono({
 });
 
 /**
- * The display face (docs/design lang). Every reference leans on a heavy, wide
- * grotesque for headings — that weight IS the language, and Geist at 900 is
- * still a text face wearing a bold. Single weight, so it costs one file.
+ * The display face. The reference specifies BullyPulpitNF, which is not
+ * available as a webfont; Lilita One is the nearest Google Fonts equivalent and
+ * matches on the three traits the look actually rests on — chunky weight,
+ * rounded terminals, slightly condensed.
+ *
+ * Single weight, so it costs one file, and that is all a display face used for
+ * headings and the wordmark needs.
  */
-const archivoBlack = Archivo_Black({
-  variable: "--font-archivo-black",
+const lilitaOne = Lilita_One({
+  variable: "--font-lilita-one",
   weight: "400",
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "QR Connect",
+  title: "Skan QR",
   description: "Share your contact details with a single scan.",
   manifest: "/manifest.webmanifest",
-  appleWebApp: { capable: true, title: "QR Connect", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Skan QR", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {
@@ -57,7 +70,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} ${archivoBlack.variable} h-full antialiased`}
+      className={`${outfit.variable} ${geistMono.variable} ${lilitaOne.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>
@@ -75,12 +88,15 @@ export default function RootLayout({
             classNames: {
               toast:
                 "!rounded-brutal !border-2 !border-ink !bg-paper !text-ink !shadow-brutal !font-sans",
-              title: "!font-bold",
-              description: "!text-ink/75",
+              title: "!font-semibold",
+              // A weight step rather than a tint: this language treats opacity
+              // as decoration, not as hierarchy, and a faded label on a pastel
+              // toast is just a muddier pastel.
+              description: "!font-medium",
               actionButton:
-                "!rounded-lg !border-2 !border-ink !bg-lemon !text-ink !font-bold",
+                "!rounded-full !border-2 !border-ink !bg-lilac !text-ink !font-semibold",
               cancelButton:
-                "!rounded-lg !border-2 !border-ink !bg-paper !text-ink !font-bold",
+                "!rounded-full !border-2 !border-ink !bg-paper !text-ink !font-semibold",
               closeButton: "!rounded-full !border-2 !border-ink !bg-paper !text-ink",
               success: "!bg-lime",
               error: "!bg-coral",

@@ -82,14 +82,14 @@ export function EnableNotifications({ title, body }: Props = {}) {
             }
             setState("resolved");
           }}
-          className="rounded-brutal border-2 border-ink bg-paper px-3 py-2 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+          className="rounded-full border-2 border-ink bg-paper px-3 py-2 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
         >
           {state === "working" ? "Enabling…" : "Turn on notifications"}
         </button>
         <button
           type="button"
           onClick={() => setState("resolved")}
-          className="rounded-brutal border-2 border-ink px-3 py-2 text-sm font-bold transition-colors hover:bg-paper"
+          className="rounded-full border-2 border-ink px-3 py-2 text-sm font-semibold transition-colors hover:bg-paper"
         >
           Not now
         </button>

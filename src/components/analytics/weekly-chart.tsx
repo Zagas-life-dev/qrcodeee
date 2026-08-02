@@ -114,7 +114,7 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
 
         <div
           aria-hidden
-          className="mt-2 flex justify-between text-[10px] font-bold tabular-nums text-ink/70"
+          className="mt-2 flex justify-between text-[10px] font-semibold tabular-nums text-ink/70"
         >
           <span>{points[0]?.label}</span>
           <span>{points.at(-1)?.label}</span>
@@ -125,7 +125,7 @@ export function WeeklyChart({ title, points, unit, hue }: Props) {
             aria-hidden
             className="pointer-events-none absolute -top-1 left-1/2 -translate-x-1/2 -translate-y-full rounded-md border-2 border-ink bg-paper px-2 py-1 text-xs whitespace-nowrap shadow-brutal-sm"
           >
-            <span className="font-bold tabular-nums">{points[active].value}</span>{" "}
+            <span className="font-semibold tabular-nums">{points[active].value}</span>{" "}
             <span className="font-medium">
               {points[active].value === 1 ? unit : `${unit}s`} · {points[active].full}
             </span>

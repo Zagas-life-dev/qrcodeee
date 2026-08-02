@@ -6,7 +6,7 @@ export default function Loading() {
       <SkeletonTitle />
       <div className="mt-8 flex items-center gap-4">
         <div className="size-20 shrink-0 animate-pulse rounded-full border-2 border-ink bg-paper shadow-brutal" />
-        <div className="h-11 w-36 animate-pulse rounded-brutal border-2 border-ink bg-paper shadow-brutal-sm" />
+        <div className="h-11 w-36 animate-pulse rounded-full border-2 border-ink bg-paper shadow-brutal-sm" />
       </div>
       <div className="mt-8 space-y-6">
         <SkeletonCard className="h-16" />

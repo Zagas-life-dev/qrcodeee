@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { signInWithGoogle } from "@/lib/auth/actions";
 import { createClient } from "@/lib/supabase/server";
 import { safeNextPath } from "@/lib/safe-redirect";
+import { SkanMark } from "@/components/brand";
 import { CenteredPage } from "@/components/page";
 
 const ERROR_COPY: Record<string, string> = {
@@ -31,7 +32,18 @@ export default async function LoginPage({
 
   return (
     <CenteredPage>
-      <h1 className="font-display text-3xl leading-none tracking-tight">QR Connect</h1>
+      {/* The one screen that gets the full lockup at size. A scan that arrives
+          logged-out lands here, so for a stranger this is the product's first
+          impression and the only place the mark is the subject rather than
+          chrome. The tile repeats the app icon they'd install. */}
+      {/* Sized to REPRODUCE the installed app icon, not merely to echo it: the
+          icon's plate is 76 units wide with a 22-unit corner (29%, so 16px on a
+          56px tile) and its mark fills ~80% of that. Someone who installed the
+          PWA should recognise this as the same object. */}
+      <span className="mb-5 inline-flex size-14 items-center justify-center rounded-2xl border-2 border-ink bg-lilac shadow-brutal">
+        <SkanMark className="size-12" />
+      </span>
+      <h1 className="font-display text-3xl leading-none tracking-tight">Skan QR</h1>
       <p className="mt-3 text-sm font-medium">
         {isScanFlow
           ? "Sign in to finish connecting — we'll pick up right where you left off."
@@ -41,7 +53,7 @@ export default async function LoginPage({
       {errorMessage ? (
         <p
           role="alert"
-          className="mt-6 rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-sm font-bold"
+          className="mt-6 rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-sm font-semibold"
         >
           {errorMessage}
         </p>
@@ -51,7 +63,7 @@ export default async function LoginPage({
         <input type="hidden" name="next" value={next} />
         <button
           type="submit"
-          className="flex w-full items-center justify-center gap-3 rounded-brutal border-2 border-ink bg-lemon px-4 py-3 text-sm font-bold shadow-brutal nb-press"
+          className="flex w-full items-center justify-center gap-3 rounded-full border-2 border-ink bg-lilac px-4 py-3 text-sm font-semibold shadow-brutal nb-press"
         >
           <GoogleMark />
           Continue with Google

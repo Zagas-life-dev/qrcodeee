@@ -193,7 +193,7 @@ async function deliverPendingPushes(
         : `${name} updated their profile.`;
 
     const result = await sendPushToProfile(row.recipient_id, {
-      title: "QR Connect",
+      title: "Skan QR",
       body,
       url: "/notifications",
       // Collapses repeats for the same source+version instead of stacking.

@@ -59,7 +59,7 @@ export function SkeletonRow() {
         <div className="h-3.5 w-2/5 animate-pulse rounded-full bg-canvas" />
         <div className="h-2.5 w-3/5 animate-pulse rounded-full bg-canvas" />
       </div>
-      <div className="h-9 w-20 shrink-0 animate-pulse rounded-brutal border-2 border-ink bg-canvas" />
+      <div className="h-9 w-20 shrink-0 animate-pulse rounded-full border-2 border-ink bg-canvas" />
     </li>
   );
 }

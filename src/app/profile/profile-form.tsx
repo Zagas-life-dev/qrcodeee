@@ -39,7 +39,7 @@ export function ProfileForm({ name, bio, phone, email }: Props) {
       />
 
       <fieldset className="space-y-6 rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
-        <legend className="rounded-full border-2 border-ink bg-lilac px-3 py-0.5 font-display text-xs tracking-wide uppercase">
+        <legend className="rounded-full border-2 border-ink bg-sky px-3 py-0.5 font-display text-xs tracking-wide uppercase">
           Contact details
         </legend>
         <p className="text-sm font-medium">
@@ -71,7 +71,7 @@ export function ProfileForm({ name, bio, phone, email }: Props) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-brutal border-2 border-ink bg-lemon px-4 py-2.5 text-sm font-bold shadow-brutal nb-press disabled:opacity-50"
+          className="rounded-full border-2 border-ink bg-lilac px-4 py-2.5 text-sm font-semibold shadow-brutal nb-press disabled:opacity-50"
         >
           {pending ? "Saving…" : "Save profile"}
         </button>
@@ -82,7 +82,7 @@ export function ProfileForm({ name, bio, phone, email }: Props) {
         {state.message ? (
           <p
             role="status"
-            className={`rounded-brutal border-2 border-ink px-3 py-1.5 text-sm font-bold ${
+            className={`rounded-full border-2 border-ink px-3 py-1.5 text-sm font-semibold ${
               state.status === "error" ? "bg-coral" : "bg-lime"
             }`}
           >
@@ -150,7 +150,7 @@ function Field({
         </p>
       ) : null}
       {error ? (
-        <p id={`${name}-error`} className="text-xs font-bold">
+        <p id={`${name}-error`} className="text-xs font-semibold">
           {error}
         </p>
       ) : null}

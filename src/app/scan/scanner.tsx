@@ -125,7 +125,7 @@ export function Scanner() {
 
   return (
     <div className="mt-6">
-      <div className="relative aspect-square w-full overflow-hidden rounded-brutal border-2 border-ink bg-ink shadow-brutal">
+      <div className="relative aspect-square w-full overflow-hidden rounded-brutal-lg border-2 border-ink bg-ink shadow-brutal">
         <video ref={videoRef} className="size-full object-cover" playsInline muted />
         {/* The reticle and the status copy stay white rather than ink: they are
             drawn over a camera feed, the one surface in the app whose colour
@@ -138,23 +138,32 @@ export function Scanner() {
           />
         ) : null}
         {status.kind !== "scanning" ? (
-          <div className="absolute inset-0 flex items-center justify-center p-6 text-center text-sm font-bold text-white">
-            {status.kind === "starting" && "Starting the camera…"}
-            {status.kind === "found" && "Got it — connecting…"}
-            {status.kind === "error" && status.message}
+          // The camera feed is the one backdrop in the app whose colour is
+          // unknown at build time, which is exactly the case `nb-glass-ink` is
+          // sized for: bare white text can land on a blown-out frame and
+          // vanish, and an opaque panel would hide the very thing the copy is
+          // talking about. Frosted ink gives the words a guaranteed 7.44:1 floor
+          // — that is against a blown-out white frame, the worst case — while
+          // the feed still reads through.
+          <div className="absolute inset-0 flex items-center justify-center p-6">
+            <p className="nb-glass-ink rounded-brutal border-2 border-white/70 px-4 py-3 text-center text-sm font-semibold text-white">
+              {status.kind === "starting" && "Starting the camera…"}
+              {status.kind === "found" && "Got it — connecting…"}
+              {status.kind === "error" && status.message}
+            </p>
           </div>
         ) : null}
       </div>
 
       <p role="status" className="mt-4 text-sm font-medium">
         {status.kind === "scanning"
-          ? "Point the camera at someone's QR Connect code."
+          ? "Point the camera at someone's Skan QR code."
           : " "}
       </p>
 
       {lastRejected && status.kind === "scanning" ? (
-        <p className="mt-2 rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-bold">
-          That looks like a QR code, but not a QR Connect one.
+        <p className="mt-2 rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-semibold">
+          That looks like a QR code, but not a Skan QR one.
         </p>
       ) : null}
     </div>

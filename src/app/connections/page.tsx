@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { ConnectionActions } from "@/components/connection-actions";
 import { SaveContactButton } from "@/components/save-contact-button";
+import { AnimatedList, AnimatedListItem } from "@/components/animated-list";
 import {
   ActionLink,
   EmptyState,
@@ -16,7 +17,7 @@ import {
 
 import { SearchBox } from "./search-box";
 
-export const metadata = { title: "Connections · QR Connect" };
+export const metadata = { title: "Connections · Skan QR" };
 
 const PAGE_SIZE = 25;
 
@@ -95,14 +96,15 @@ export default async function ConnectionsPage({
         // Discrete cards rather than divider rules: a hairline divider is the
         // soft-depth idiom this language replaces, and every row here already
         // carries two controls that need a surface to sit on.
-        <ul className="mt-6 space-y-3">
-          {results.map((row) => {
+        <AnimatedList className="mt-6 space-y-3">
+          {results.map((row, index) => {
             // §8: a deleted account keeps its connection and renders as a
             // placeholder rather than a broken reference.
             const deleted = row.deleted_at != null;
             return (
-              <li
+              <AnimatedListItem
                 key={row.connection_id}
+                index={index}
                 className={`nb-row flex items-center gap-3 rounded-brutal border-2 border-ink p-3 shadow-brutal ${
                   // §8: a deleted account is still a real row, so it keeps its
                   // border and shadow and loses only its fill — the one place
@@ -118,7 +120,7 @@ export default async function ConnectionsPage({
                     className="size-10 shrink-0 rounded-full border-2 border-ink object-cover"
                   />
                 ) : (
-                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-lilac font-display text-sm">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-sky font-display text-sm">
                     {deleted ? "—" : row.name.charAt(0).toUpperCase()}
                   </div>
                 )}
@@ -167,10 +169,10 @@ export default async function ConnectionsPage({
                     name={deleted ? "this deleted account" : row.name}
                   />
                 </span>
-              </li>
+              </AnimatedListItem>
             );
           })}
-        </ul>
+        </AnimatedList>
       )}
 
       {pages > 1 ? (
@@ -182,7 +184,7 @@ export default async function ConnectionsPage({
           ) : (
             <span />
           )}
-          <span className="font-bold tabular-nums">
+          <span className="font-semibold tabular-nums">
             Page {page} of {pages}
           </span>
           {page < pages ? (

@@ -3,9 +3,9 @@
  *
  * The class names, layer order and custom-property contract are upstream's, so
  * the tilt engine in profile-card.tsx drives this unchanged: it still writes
- * --pointer-x/y, --rotate-x/y, --background-x/y and --pointer-from-* every
- * frame, and this stylesheet reads exactly those. What changed is everything
- * those values are spent ON.
+ * --pointer-x/y, --rotate-x/y and --pointer-from-top/left every frame, and this
+ * stylesheet reads exactly those. What changed is everything those values are
+ * spent ON.
  *
  * Upstream is dark glassmorphism — black card, rainbow foil, backdrop blur,
  * soft radial glow, gradient-clipped text. This app's language is the opposite
@@ -16,7 +16,11 @@
  *   blurred drop shadow -> the hard zero-blur offset, which now SHIFTS with the
  *                          pointer (upstream's shadow already tracked the
  *                          pointer; only its blur had to go)
- *   backdrop-filter     -> flat paper with an ink outline
+ *   backdrop-filter     -> KEPT, on the one panel that sits over the avatar
+ *                          photo, and given an ink outline and a hard offset.
+ *                          See .pc-user-info: this app allows glass exactly
+ *                          where there is media behind it, which upstream's
+ *                          info panel happens to satisfy.
  *   gradient text       -> solid ink in the display face
  *
  * The tilt, the glare sweep and the parallax all survive. It is the same card,
@@ -26,26 +30,18 @@
   /* Written by the tilt engine; the fallbacks are what a no-JS render shows. */
   --pointer-x: 50%;
   --pointer-y: 50%;
-  --pointer-from-center: 0;
   --pointer-from-top: 0.5;
   --pointer-from-left: 0.5;
-  --card-opacity: 0;
   --rotate-x: 0deg;
   --rotate-y: 0deg;
-  --background-x: 50%;
-  --background-y: 50%;
-  --grain: none;
-  --icon: none;
 
   /* Local aliases so the card still renders if it is ever lifted out of this
      app, where the theme tokens wouldn't exist. */
   --pc-ink: var(--color-ink, #0b0b0b);
   --pc-paper: var(--color-paper, #fffdf7);
-  --pc-fill: var(--color-lemon, #ffc93c);
-  --pc-band-1: var(--color-bubble, #ff8fc7);
-  --pc-band-2: var(--color-lime, #a8e86a);
-  --pc-band-3: var(--color-sky, #86d8f7);
-  --pc-band-4: var(--color-lilac, #bca6f7);
+  --pc-fill: var(--color-lilac, #bca6f7);
+  --pc-action: var(--color-sky, #86d8f7);
+  --pc-initials: var(--color-coral, #ff7060);
 
   --card-radius: 22px;
 
@@ -67,11 +63,6 @@
    The depth is the offset shadow on .pc-card instead. */
 .pc-behind {
   display: none;
-}
-
-.pc-card-wrapper:hover,
-.pc-card-wrapper.active {
-  --card-opacity: 1;
 }
 
 .pc-card {
@@ -130,76 +121,19 @@
 }
 
 /**
- * The foil, rebuilt in hard edges.
+ * REMOVED: the foil (.pc-shine) and the glare sweep (.pc-glare).
  *
- * Four diagonal bands from the app's accent palette with zero-width colour
- * stops, so every boundary is a crisp line rather than a blend. The radial mask
- * is what makes it read as a sheen instead of a pattern: the bands only exist
- * near the pointer and fade out with distance, which is the same information
- * upstream's holographic sweep carried, drawn in this language.
+ * Upstream lights the card with a holographic band pattern in `multiply` and a
+ * white diagonal in `soft-light`, both tracking the pointer. Rebuilt in hard
+ * edges they still did the one thing this palette cannot afford: four saturated
+ * bands multiplied over a lilac fill shifted its hue continuously as the pointer
+ * moved, and the glass info panel then sampled that and blurred it, so the panel
+ * discoloured too. On flat fills with a fixed outline, a moving tint reads as a
+ * rendering fault rather than as light.
+ *
+ * The card keeps its tilt, its parallax and its pointer-tracking offset shadow —
+ * the depth cues are all still there, they just no longer change any colour.
  */
-.pc-shine {
-  z-index: 3;
-  overflow: hidden;
-  transform: translate3d(0, 0, 1px);
-  background-image: repeating-linear-gradient(
-    115deg,
-    var(--pc-band-1) 0 22px,
-    var(--pc-band-2) 22px 44px,
-    var(--pc-band-3) 44px 66px,
-    var(--pc-band-4) 66px 88px
-  );
-  background-size: 200% 200%;
-  background-position: var(--background-x) var(--background-y);
-  /**
-   * Hard-edged stops alone weren't enough: four light accents laid over a light
-   * fill at partial opacity average toward the fill, and the boundaries stop
-   * reading as edges. `multiply` keeps each band a distinct hue against the
-   * lemon instead of tinting toward it, which is what puts the edges back.
-   */
-  mix-blend-mode: multiply;
-  /* A hard mask stop rather than a soft falloff — the sheen has a boundary in
-     this language, the same as everything else. */
-  mask-image: radial-gradient(
-    circle at var(--pointer-x) var(--pointer-y),
-    #000 0%,
-    #000 42%,
-    transparent 62%
-  );
-  opacity: 0.5;
-  transition: opacity 0.5s ease;
-}
-
-.pc-card:hover .pc-shine,
-.pc-card.active .pc-shine {
-  opacity: 0.95;
-}
-
-/* Upstream layers two more foil passes through ::before/::after. One band set
-   is enough once the edges are hard — a second would read as noise, not depth. */
-.pc-shine::before,
-.pc-shine::after {
-  content: none;
-}
-
-/**
- * The glare: a single hard-edged diagonal sweep that slides across the card as
- * the pointer moves. Upstream's is a soft radial overlay in `overlay` blend
- * mode; this is the same gesture with the gradient collapsed to two stops.
- */
-.pc-glare {
-  z-index: 4;
-  overflow: hidden;
-  transform: translate3d(0, 0, 1.1px);
-  background-image: linear-gradient(
-    115deg,
-    transparent 0 calc(var(--background-x) - 14%),
-    rgba(255, 255, 255, 0.72) calc(var(--background-x) - 14%) calc(var(--background-x) - 4%),
-    transparent calc(var(--background-x) - 4%) 100%
-  );
-  opacity: calc(0.25 + var(--pointer-from-center) * 0.45);
-  mix-blend-mode: soft-light;
-}
 
 .pc-avatar-content {
   overflow: visible;
@@ -250,8 +184,20 @@
   pointer-events: none;
 }
 
-/* Paper panel with an ink outline and a hard offset — the same recipe as every
-   other card in the app, replacing upstream's blurred glass. */
+/**
+ * The one panel in this app with a photograph guaranteed to be behind it, which
+ * is the condition glass is allowed under (see the Glass block in globals.css).
+ * Upstream's version was blurred glass, this app flattened it to solid paper,
+ * and it comes back here deliberately rather than by reverting: the avatar fills
+ * the card underneath, so the blur has something to do.
+ *
+ * WHAT DOES NOT BECOME GLASS: the outline, the hard offset, and the two controls
+ * sitting on top of it — the mini avatar and the Save button stay opaque. Solid
+ * on glass, never the other way round.
+ *
+ * 75% is a contrast floor, not a look: a photo can be anything, and at this
+ * value a pure-black frame still leaves ink at 8.7:1.
+ */
 .pc-user-info {
   position: absolute;
   --ui-inset: 14px;
@@ -263,12 +209,28 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: var(--pc-paper);
+  background: color-mix(in srgb, var(--pc-paper) 75%, transparent);
+  backdrop-filter: blur(12px) saturate(1.7);
   border: 2px solid var(--pc-ink);
   border-radius: 999px;
   box-shadow: 3px 3px 0 var(--pc-ink);
   padding: 8px 10px;
   pointer-events: auto;
+}
+
+/* Without the blur the panel would be a plain 75% wash over a photo, which is
+   less readable than the solid fill it replaced — so drop all the way back. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .pc-user-info {
+    background: var(--pc-paper);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pc-user-info {
+    background: var(--pc-paper);
+    backdrop-filter: none;
+  }
 }
 
 .pc-user-details {
@@ -302,7 +264,7 @@
   font-family: var(--font-display, inherit);
   font-size: 16px;
   color: var(--pc-ink);
-  background: var(--pc-band-4);
+  background: var(--pc-initials);
 }
 
 .pc-user-text {
@@ -315,7 +277,7 @@
 
 .pc-handle {
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--pc-ink);
   line-height: 1.1;
   max-width: 100%;
@@ -334,13 +296,13 @@
 .pc-contact-btn {
   border: 2px solid var(--pc-ink);
   border-radius: 999px;
-  background: var(--pc-band-2);
+  background: var(--pc-action);
   padding: 0 16px;
   /* 44px, the touch minimum this app holds every other control to. Upstream's
      12px/16px padding lands around 38px. */
   min-height: 44px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--pc-ink);
   cursor: pointer;
   white-space: nowrap;
@@ -485,14 +447,5 @@
 
   .pc-content:not(.pc-avatar-content) {
     transform: none;
-  }
-
-  .pc-shine {
-    mask-image: none;
-    opacity: 0.32;
-  }
-
-  .pc-glare {
-    display: none;
   }
 }

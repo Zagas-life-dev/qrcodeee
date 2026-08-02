@@ -17,7 +17,7 @@ export default async function AuthCodeErrorPage({
         fixes it.
       </p>
       {reason ? (
-        <p className="mt-4 rounded-brutal border-2 border-ink bg-canvas px-3 py-2 font-mono text-xs font-bold wrap-break-word">
+        <p className="mt-4 rounded-brutal border-2 border-ink bg-canvas px-3 py-2 font-mono text-xs font-semibold wrap-break-word">
           {reason}
         </p>
       ) : null}

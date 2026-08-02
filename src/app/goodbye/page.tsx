@@ -1,6 +1,6 @@
 import { CenteredPage } from "@/components/page";
 
-export const metadata = { title: "Account deleted · QR Connect" };
+export const metadata = { title: "Account deleted · Skan QR" };
 
 export default function GoodbyePage() {
   return (
@@ -16,7 +16,7 @@ export default function GoodbyePage() {
         Anyone who already saved you to their phone still has that contact —
         that lives on their device and is out of our reach.
       </p>
-      <p className="mt-6 text-xs font-bold text-ink/70">You can close this page.</p>
+      <p className="mt-6 text-xs font-semibold text-ink/70">You can close this page.</p>
     </CenteredPage>
   );
 }

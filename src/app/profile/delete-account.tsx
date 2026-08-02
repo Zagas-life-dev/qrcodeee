@@ -28,7 +28,7 @@ export function DeleteAccount() {
           <button
             type="button"
             onClick={() => setOpen(true)}
-            className="mt-4 min-h-11 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+            className="mt-4 min-h-11 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
           >
             Delete account
           </button>
@@ -54,7 +54,7 @@ export function DeleteAccount() {
           </ul>
 
           <label htmlFor="confirm" className="mt-4 block text-sm font-medium">
-            Type <span className="font-mono font-bold">{CONFIRM_WORD}</span> to confirm
+            Type <span className="font-mono font-semibold">{CONFIRM_WORD}</span> to confirm
           </label>
           <input
             id="confirm"
@@ -76,7 +76,7 @@ export function DeleteAccount() {
                   toast.error(result.message);
                 })
               }
-              className="min-h-12 rounded-brutal border-2 border-ink bg-ink px-4 text-sm font-bold text-paper shadow-brutal-sm nb-press-sm disabled:opacity-40"
+              className="min-h-12 rounded-full border-2 border-ink bg-ink px-4 text-sm font-semibold text-paper shadow-brutal-sm nb-press-sm disabled:opacity-40"
             >
               {isPending ? "Deleting…" : "Permanently delete"}
             </button>
@@ -86,7 +86,7 @@ export function DeleteAccount() {
                 setOpen(false);
                 setTyped("");
               }}
-              className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+              className="min-h-12 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
             >
               Cancel
             </button>

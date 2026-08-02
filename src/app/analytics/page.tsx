@@ -13,7 +13,7 @@ import {
   Section,
 } from "@/components/page";
 
-export const metadata = { title: "Analytics · QR Connect" };
+export const metadata = { title: "Analytics · Skan QR" };
 
 /**
  * Networking analytics (§9).
@@ -170,12 +170,12 @@ function Stat({
   hero?: boolean;
 }) {
   return (
-    // The hero takes the lemon fill so the headline figure leads the row. The
+    // The hero takes the lilac fill so the headline figure leads the row. The
     // fill marks WHICH TILE is the headline, it never encodes the value — no
     // tile's colour changes with its number.
     <div
       className={`rounded-brutal border-2 border-ink p-4 shadow-brutal ${
-        hero ? "bg-lemon" : "bg-paper"
+        hero ? "bg-lilac" : "bg-paper"
       }`}
     >
       {/* Body sans, not font-display, and no tabular-nums: a display face on a
@@ -185,8 +185,8 @@ function Stat({
       <p
         className={
           hero
-            ? "text-4xl font-bold tracking-tight"
-            : "text-2xl font-bold tracking-tight"
+            ? "text-4xl font-semibold tracking-tight"
+            : "text-2xl font-semibold tracking-tight"
         }
       >
         {value}
@@ -224,7 +224,7 @@ function Action({
   if (count === 0) {
     return (
       <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-lime p-3 shadow-brutal">
-        <span className="text-sm font-bold">{empty}</span>
+        <span className="text-sm font-semibold">{empty}</span>
       </li>
     );
   }
@@ -232,7 +232,7 @@ function Action({
   return (
     <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal">
       <span className="min-w-0 flex-1 text-sm font-medium">
-        <span className="font-bold">{count}</span>{" "}
+        <span className="font-semibold">{count}</span>{" "}
         {count === 1 ? singular : plural}
       </span>
       <ActionLink href={href} tone="primary" size="sm" className="shrink-0">

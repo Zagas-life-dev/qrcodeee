@@ -30,7 +30,7 @@ self.addEventListener("push", (event) => {
     payload = {};
   }
 
-  const title = payload.title || "QR Connect";
+  const title = payload.title || "Skan QR";
   const options = {
     body: payload.body || "",
     icon: "/icon-192.png",

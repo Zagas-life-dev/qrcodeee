@@ -5,7 +5,7 @@ import { ActionLink, EmptyState, Notice, Page, PageHeader } from "@/components/p
 
 import { UnblockButton } from "./unblock-button";
 
-export const metadata = { title: "Blocked · QR Connect" };
+export const metadata = { title: "Blocked · Skan QR" };
 
 export default async function BlockedPage() {
   const supabase = await createClient();
@@ -50,7 +50,7 @@ export default async function BlockedPage() {
                   className="size-10 shrink-0 rounded-full border-2 border-ink object-cover"
                 />
               ) : (
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-lilac font-display text-sm">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-sky font-display text-sm">
                   {person.name.charAt(0).toUpperCase()}
                 </div>
               )}

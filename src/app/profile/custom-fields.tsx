@@ -152,7 +152,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                       updateCustomField(field.id, draft.label, draft.value, !field.is_public),
                     )
                   }
-                  className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
+                  className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
                     field.is_public ? "bg-lime" : "bg-paper"
                   }`}
                 >
@@ -175,7 +175,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                           updateCustomField(field.id, draft.label, draft.value, field.is_public),
                         )
                       }
-                      className="min-h-9 rounded-brutal border-2 border-ink bg-lemon px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+                      className="min-h-9 rounded-full border-2 border-ink bg-lilac px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
                     >
                       Save
                     </button>
@@ -184,7 +184,7 @@ export function CustomFields({ fields }: { fields: CustomField[] }) {
                     type="button"
                     disabled={isPending}
                     onClick={() => run(() => deleteCustomField(field.id))}
-                    className="min-h-9 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm hover:bg-coral disabled:opacity-40"
+                    className="min-h-9 rounded-full border-2 border-ink bg-paper px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm hover:bg-coral disabled:opacity-40"
                   >
                     Delete
                   </button>
@@ -221,7 +221,7 @@ function ArrowButton({
       // Stacked pairs of tiny arrows are the single easiest control to mis-tap
       // on a phone; size-9 with a gap between them is the floor that stops the
       // "move up" hitting "move down".
-      className="flex size-9 items-center justify-center rounded-md border-2 border-ink bg-paper text-xs font-bold transition-colors hover:bg-lemon disabled:opacity-25"
+      className="flex size-9 items-center justify-center rounded-full border-2 border-ink bg-paper text-xs font-semibold transition-colors hover:bg-lilac disabled:opacity-25"
     >
       {children}
     </button>
@@ -241,7 +241,7 @@ function AddField({
 
   if (atLimit) {
     return (
-      <p className="mt-4 rounded-brutal border-2 border-dashed border-ink px-3 py-4 text-sm font-bold">
+      <p className="mt-4 rounded-brutal border-2 border-dashed border-ink px-3 py-4 text-sm font-semibold">
         You&apos;ve reached the limit of {MAX_CUSTOM_FIELDS} custom fields.
         Delete one to add another.
       </p>
@@ -283,7 +283,7 @@ function AddField({
           type="button"
           aria-pressed={isPublic}
           onClick={() => setIsPublic(!isPublic)}
-          className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm ${
+          className={`min-h-9 rounded-full border-2 border-ink px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm ${
             isPublic ? "bg-lime" : "bg-paper"
           }`}
         >
@@ -292,7 +292,7 @@ function AddField({
         <button
           type="submit"
           disabled={disabled || !label.trim()}
-          className="ml-auto min-h-11 rounded-brutal border-2 border-ink bg-lemon px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+          className="ml-auto min-h-11 rounded-full border-2 border-ink bg-lilac px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
         >
           Add field
         </button>

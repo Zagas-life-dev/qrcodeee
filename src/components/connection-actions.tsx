@@ -85,7 +85,7 @@ export function ConnectionActions({
           onClick={() => menuRef.current?.showModal()}
           aria-label={`Actions for ${name}`}
           aria-haspopup="dialog"
-          className="flex size-11 shrink-0 items-center justify-center rounded-brutal border-2 border-ink bg-paper text-base font-bold shadow-brutal-sm nb-press-sm"
+          className="flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-paper text-base font-semibold shadow-brutal-sm nb-press-sm"
         >
           <span aria-hidden>•••</span>
         </button>
@@ -98,7 +98,7 @@ export function ConnectionActions({
               setConfirming("disconnect");
               menuRef.current?.showModal();
             }}
-            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+            className="min-h-12 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
           >
             Disconnect
           </button>
@@ -108,14 +108,14 @@ export function ConnectionActions({
               setConfirming("block");
               menuRef.current?.showModal();
             }}
-            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+            className="min-h-12 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
           >
             Block
           </button>
           <button
             type="button"
             onClick={() => reportRef.current?.showModal()}
-            className="min-h-12 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+            className="min-h-12 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
           >
             Report
           </button>
@@ -170,7 +170,7 @@ export function ConnectionActions({
             <button
               type="button"
               onClick={closeMenu}
-              className="mt-4 min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+              className="mt-4 min-h-12 w-full rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
             >
               Cancel
             </button>
@@ -231,14 +231,14 @@ export function ConnectionActions({
             <button
               type="button"
               onClick={() => reportRef.current?.close()}
-              className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+              className="min-h-12 flex-1 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isPending}
-              className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-lemon px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+              className="min-h-12 flex-1 rounded-full border-2 border-ink bg-lilac px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
             >
               {isPending ? "Sending…" : "Send report"}
             </button>
@@ -293,7 +293,7 @@ function MenuButton({
     <button
       type="button"
       onClick={onClick}
-      className="min-h-12 w-full rounded-brutal border-2 border-ink bg-paper px-4 text-left text-sm font-bold shadow-brutal-sm nb-press-sm"
+      className="min-h-12 w-full rounded-full border-2 border-ink bg-paper px-4 text-left text-sm font-semibold shadow-brutal-sm nb-press-sm"
     >
       {children}
     </button>
@@ -325,7 +325,7 @@ function Confirm({
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-12 flex-1 rounded-brutal border-2 border-ink bg-paper px-4 text-sm font-bold shadow-brutal-sm nb-press-sm"
+          className="min-h-12 flex-1 rounded-full border-2 border-ink bg-paper px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
         >
           Cancel
         </button>
@@ -337,7 +337,7 @@ function Confirm({
           type="button"
           disabled={pending}
           onClick={onConfirm}
-          className={`min-h-12 flex-1 rounded-brutal border-2 border-ink px-4 text-sm font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
+          className={`min-h-12 flex-1 rounded-full border-2 border-ink px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50 ${
             destructive ? "bg-coral" : "bg-paper"
           }`}
         >

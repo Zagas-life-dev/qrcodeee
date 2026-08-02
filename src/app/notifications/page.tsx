@@ -4,11 +4,12 @@ import { createClient } from "@/lib/supabase/server";
 import { notificationText, relativeTime } from "@/lib/notifications/display";
 import type { NotificationType } from "@/lib/supabase/database.types";
 import { SaveContactButton } from "@/components/save-contact-button";
+import { AnimatedList, AnimatedListItem } from "@/components/animated-list";
 import { ActionLink, EmptyState, Page, PageHeader } from "@/components/page";
 
 import { MarkAllReadButton, MarkOnOpen } from "./actions-client";
 
-export const metadata = { title: "Notifications · QR Connect" };
+export const metadata = { title: "Notifications · Skan QR" };
 
 const PAGE_SIZE = 30;
 
@@ -55,8 +56,8 @@ export default async function NotificationsPage() {
           </EmptyState>
         </div>
       ) : (
-        <ul className="mt-6 space-y-3">
-          {notifications.map((notification) => {
+        <AnimatedList className="mt-6 space-y-3">
+          {notifications.map((notification, index) => {
             const source = byId.get(notification.source_profile_id);
             const deleted = source?.deleted_at != null;
             const name = deleted ? "A deleted account" : (source?.name ?? "Someone");
@@ -66,8 +67,9 @@ export default async function NotificationsPage() {
               // Read/unread is carried by the FILL, not by opacity: fading a
               // card on a yellow canvas just makes it muddier, and the sky fill
               // reads as "new" down a list at a glance.
-              <li
+              <AnimatedListItem
                 key={notification.id}
+                index={index}
                 className={`flex gap-3 rounded-brutal border-2 border-ink p-3 shadow-brutal ${
                   notification.read_at ? "bg-paper" : "bg-sky"
                 }`}
@@ -84,7 +86,7 @@ export default async function NotificationsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-display text-sm">{copy.title}</p>
                   <p className="mt-1 text-sm font-medium">{copy.body}</p>
-                  <p className="mt-1.5 text-xs font-bold text-ink/70">
+                  <p className="mt-1.5 text-xs font-semibold text-ink/70">
                     {relativeTime(notification.created_at)}
                   </p>
 
@@ -98,15 +100,15 @@ export default async function NotificationsPage() {
                       <SaveContactButton
                         profileId={source.id}
                         name={source.name}
-                        className="min-h-10 rounded-brutal border-2 border-ink bg-paper px-3.5 text-xs font-bold shadow-brutal-sm nb-press-sm disabled:opacity-50"
+                        className="min-h-10 rounded-full border-2 border-ink bg-paper px-3.5 text-xs font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-50"
                       />
                     </div>
                   ) : null}
                 </div>
-              </li>
+              </AnimatedListItem>
             );
           })}
-        </ul>
+        </AnimatedList>
       )}
 
       <ActionLink href="/connections" className="mt-8">

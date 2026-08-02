@@ -65,7 +65,7 @@ export function ConnectedProfileCard({
             className="size-14 shrink-0 rounded-full border-2 border-ink object-cover"
           />
         ) : (
-          <div className="flex size-14 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-lilac font-display text-lg">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-full border-2 border-ink bg-sky font-display text-lg">
             {profile.name.charAt(0).toUpperCase()}
           </div>
         )}

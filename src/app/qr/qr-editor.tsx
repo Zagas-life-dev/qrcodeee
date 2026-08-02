@@ -228,7 +228,7 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
             background, which is why this one surface doesn't take bg-paper. */}
         <div
           ref={holder}
-          className="rounded-brutal border-2 border-ink p-3 shadow-brutal-lg"
+          className="rounded-brutal-lg border-2 border-ink p-3 shadow-brutal-lg"
           style={{ background: style.backgroundColor }}
         />
         <p className="mt-4 max-w-72 text-center font-mono text-[10px] break-all text-ink/55">
@@ -262,7 +262,7 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
         />
 
         {contrastPoor ? (
-          <p className="rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-bold">
+          <p className="rounded-brutal border-2 border-ink bg-lemon px-3 py-2 text-xs font-semibold">
             These colours are very close together. Scanners will probably
             struggle — try a darker dot colour on a lighter background.
           </p>
@@ -271,13 +271,13 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
         {test.kind === "fail" ? (
           <p
             role="alert"
-            className="rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-xs font-bold"
+            className="rounded-brutal border-2 border-ink bg-coral px-3 py-2 text-xs font-semibold"
           >
             {test.reason} Your saved code is unchanged.
           </p>
         ) : null}
         {test.kind === "pass" ? (
-          <p className="rounded-brutal border-2 border-ink bg-lime px-3 py-2 text-xs font-bold">
+          <p className="rounded-brutal border-2 border-ink bg-lime px-3 py-2 text-xs font-semibold">
             Decoded correctly. Worth checking it printed and in low light too —
             a code that reads on screen can still fail in the real world.
           </p>
@@ -337,9 +337,9 @@ function Swatch({
         type="color"
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="size-9 shrink-0 cursor-pointer rounded-md border-2 border-ink bg-paper shadow-brutal-sm nb-press-sm"
+        className="size-9 shrink-0 cursor-pointer rounded-full border-2 border-ink bg-paper shadow-brutal-sm nb-press-sm"
       />
-      <span className="font-mono text-xs font-bold text-ink/70">{value}</span>
+      <span className="font-mono text-xs font-semibold text-ink/70">{value}</span>
     </div>
   );
 }
@@ -354,7 +354,7 @@ function Choice<T extends string>({
         id={label}
         value={value}
         onChange={(e) => onChange(e.target.value as T)}
-        className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-2 text-base font-bold shadow-brutal-sm sm:text-sm"
+        className="min-h-11 min-w-0 rounded-brutal border-2 border-ink bg-paper px-2 text-base font-semibold shadow-brutal-sm sm:text-sm"
       >
         {options.map((option) => (
           <option key={option} value={option} className="bg-paper text-ink">

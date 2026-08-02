@@ -35,13 +35,29 @@ export function TabBar() {
     // The wrapper spans the viewport so the dock can centre in it, but takes no
     // pointer events — without that, the transparent gutters either side of the
     // pill would swallow taps meant for the content scrolling underneath.
-    <div
-      style={{ viewTransitionName: "shell-tabs" }}
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden"
-    >
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden">
       <nav
         aria-label="Main"
-        className="pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-between gap-1 rounded-full border-2 border-ink bg-paper px-2.5 py-2.5 shadow-brutal"
+        /**
+         * `view-transition-name` sits HERE rather than on the wrapper, and that
+         * is load-bearing for the frosted fill, not a tidy-up.
+         *
+         * A named element becomes a backdrop root. With the name on the wrapper,
+         * this nav's backdrop-filter sampled only the wrapper's own contents —
+         * which is this nav and nothing else — so the blur computed correctly
+         * and rendered as absolutely nothing, leaving page text crisply legible
+         * straight through the dock. On the nav, the backdrop root is the page
+         * again and the blur has the scrolling content to work on.
+         *
+         * It is also the more correct capture: the wrapper is a transparent
+         * full-width box, the pill is the thing anyone can actually see move.
+         */
+        style={{ viewTransitionName: "shell-tabs" }}
+        // Frosted, for the same reason the header is: the dock is detached and
+        // the page scrolls visibly past it on both sides, so there is always
+        // something behind it. It keeps the ink outline and the hard offset —
+        // the shadow is what still says brutalism while the fill says glass.
+        className="nb-glass-chrome pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-between gap-1 rounded-full border-2 border-ink px-2.5 py-2.5 shadow-brutal"
       >
         {TABS.map((tab) => (
           <Tab key={tab.href} {...tab} pathname={pathname} />
@@ -68,13 +84,13 @@ function Tab({
 
   /**
    * Scan is the solid centre action, per the reference. It is ink-filled rather
-   * than lemon precisely BECAUSE lemon is what marks the current page — the two
+   * than lilac precisely BECAUSE lilac is what marks the current page — the two
    * would otherwise be the same circle, and an unvisited Scan would read as
-   * "you are here". Ink says primary, lemon says current, and when Scan is both
-   * it takes lemon like every other tab.
+   * "you are here". Ink says primary, lilac says current, and when Scan is both
+   * it takes lilac like every other tab.
    */
   const fill = active
-    ? "border-ink bg-lemon text-ink"
+    ? "border-ink bg-lilac text-ink"
     : primary
       ? "border-ink bg-ink text-paper"
       : "border-transparent text-ink";

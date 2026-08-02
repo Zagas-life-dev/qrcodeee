@@ -1,5 +1,5 @@
 /**
- * Database types for the QR Connect schema.
+ * Database types for the Skan QR schema.
  *
  * HAND-WRITTEN PLACEHOLDER — mirrors supabase/migrations/*.sql exactly, but is
  * meant to be replaced by generated output as soon as the migrations are applied:
