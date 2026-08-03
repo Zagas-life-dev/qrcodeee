@@ -1,4 +1,6 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+
+import { INCOMING_TRANSFORM, siteMediaPublicId } from "@/lib/site/media";
 
 /**
  * Cloudinary signed direct upload (§2).
@@ -93,6 +95,66 @@ export function signAvatarUpload(userId: string): SignedUpload {
     apiKey: API_KEY,
     publicId: params.public_id,
     timestamp: Number(params.timestamp),
+    signature,
+    uploadUrl: `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+  };
+}
+
+export type SignedSiteUpload = SignedUpload & {
+  mediaId: string;
+  transformation: string;
+};
+
+/**
+ * Signs ONE site-media upload into the caller's own folder.
+ *
+ * Differs from the avatar signature in the two ways that matter:
+ *
+ * 1. **The id is generated here, not derived.** An avatar is one slot per user,
+ *    so its public_id can be a pure function of the user id. Site media is
+ *    many-per-user, and letting the client name the file would let it overwrite
+ *    its own earlier images by replaying an id — or, if the folder prefix were
+ *    ever dropped from the signature, somebody else's. A fresh UUID per
+ *    signature makes every upload a new object and makes replay pointless.
+ *
+ * 2. **An incoming transformation is signed in.** `transformation` on an upload
+ *    is applied BEFORE the asset is stored, so `c_limit,w_2048,h_2048` bounds
+ *    what we keep no matter what arrives. The browser downscales too, but that
+ *    is a courtesy to the user's data plan; this is the part that holds when
+ *    someone posts a 100MP TIFF straight at the signed endpoint with curl.
+ *
+ * `overwrite` and `invalidate` are absent on purpose — there is nothing to
+ * overwrite at a UUID that has never been used.
+ */
+export function signSiteMediaUpload(userId: string): SignedSiteUpload {
+  if (!CLOUD_NAME || !API_KEY || !API_SECRET) {
+    throw new Error(
+      "Cloudinary is not configured — set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY and CLOUDINARY_API_SECRET.",
+    );
+  }
+
+  const mediaId = randomUUID();
+
+  const params: Record<string, string> = {
+    public_id: siteMediaPublicId(userId, mediaId),
+    timestamp: String(Math.floor(Date.now() / 1000)),
+    transformation: INCOMING_TRANSFORM,
+  };
+
+  const toSign = Object.keys(params)
+    .sort()
+    .map((key) => `${key}=${params[key]}`)
+    .join("&");
+
+  const signature = createHash("sha1").update(toSign + API_SECRET).digest("hex");
+
+  return {
+    cloudName: CLOUD_NAME,
+    apiKey: API_KEY,
+    mediaId,
+    publicId: params.public_id,
+    timestamp: Number(params.timestamp),
+    transformation: params.transformation,
     signature,
     uploadUrl: `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
   };

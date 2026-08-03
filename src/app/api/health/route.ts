@@ -19,8 +19,17 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * not running at all, and the symptom users see is simply that nobody is told
  * anything.
  */
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+/**
+ * `runtime` and `dynamic` used to be pinned here. Neither is expressible under
+ * `cacheComponents` (next.config.ts) and neither is needed:
+ *
+ *   - nodejs is the default runtime, and this route uses the service-role key,
+ *     which still has no business on the edge. Nothing may reintroduce an edge
+ *     runtime for it.
+ *   - "force-dynamic" is redundant now that every route is dynamic by default,
+ *     and this one reads a request header regardless, so it could never be
+ *     prerendered.
+ */
 
 function secretMatches(provided: string | null, expected: string): boolean {
   if (!provided) return false;

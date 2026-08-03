@@ -91,7 +91,9 @@ export function AvatarUpload({ photoUrl, name }: Props) {
   const shown = preview ?? photoUrl;
 
   return (
-    <div className="mt-8 flex flex-wrap items-center gap-4">
+    // Spacing belongs to the page (this is the first child of its column now),
+    // not to the component — see `Columns` in components/page.tsx.
+    <div className="flex flex-wrap items-center gap-4">
       <div className="relative size-20 shrink-0 overflow-hidden rounded-full border-2 border-ink bg-sky shadow-brutal">
         {shown ? (
           // A blob: URL from the local file preview can't go through

@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ChartIcon, PeopleIcon, PersonIcon, QrIcon, ScanIcon } from "./nav-icons";
+import { NAV_ITEMS, isActivePath } from "./nav-items";
 
 /**
- * The phone-sized navigation, as a floating dock (`sm:hidden` — the header
- * carries these same destinations on wider screens).
+ * The phone-sized navigation, as a floating dock (`sm:hidden` — the header row
+ * and the desktop rail carry these same destinations on wider screens).
  *
  * A detached pill rather than a full-width bar welded to the bottom edge, per
  * docs/images (1).jpg. Brutalism survives the shape change intact: the dock
@@ -19,14 +19,13 @@ import { ChartIcon, PeopleIcon, PersonIcon, QrIcon, ScanIcon } from "./nav-icons
  * on both sides, so it reads as sitting above the content rather than cropping
  * it, and the rounded ends stop the bar from looking like a torn-off edge on a
  * device with no home indicator.
+ *
+ * SIX BUTTONS NOW, NOT FIVE. `/site` had no tab, which made the page editor
+ * unreachable on a phone except through a link inside the profile form. Six
+ * 44px targets plus their gaps come to 304px, which clears the 360px floor this
+ * app supports — the dock's `max-w-sm` cap is what keeps them from spreading out
+ * on a large phone.
  */
-const TABS = [
-  { href: "/qr", label: "My code", Icon: QrIcon },
-  { href: "/connections", label: "People", Icon: PeopleIcon },
-  { href: "/scan", label: "Scan", Icon: ScanIcon, primary: true },
-  { href: "/analytics", label: "Stats", Icon: ChartIcon },
-  { href: "/profile", label: "Profile", Icon: PersonIcon },
-] as const;
 
 export function TabBar() {
   const pathname = usePathname();
@@ -35,7 +34,14 @@ export function TabBar() {
     // The wrapper spans the viewport so the dock can centre in it, but takes no
     // pointer events — without that, the transparent gutters either side of the
     // pill would swallow taps meant for the content scrolling underneath.
-    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden">
+    // `data-tab-bar` is what globals.css keys the content's bottom reservation
+    // off. The dock is rendered inside a Suspense boundary now (app-shell.tsx),
+    // so nothing upstream knows at render time whether it will exist — the
+    // presence of this element in the DOM is the signal.
+    <div
+      data-tab-bar
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-40 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] sm:hidden"
+    >
       <nav
         aria-label="Main"
         /**
@@ -57,10 +63,17 @@ export function TabBar() {
         // the page scrolls visibly past it on both sides, so there is always
         // something behind it. It keeps the ink outline and the hard offset —
         // the shadow is what still says brutalism while the fill says glass.
-        className="nb-glass-chrome pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-between gap-1 rounded-full border-2 border-ink px-2.5 py-2.5 shadow-brutal"
+        className="nb-glass-chrome pointer-events-auto mx-auto flex w-full max-w-sm items-center justify-between gap-1 rounded-full border-2 border-ink px-2 py-2.5 shadow-brutal"
       >
-        {TABS.map((tab) => (
-          <Tab key={tab.href} {...tab} pathname={pathname} />
+        {NAV_ITEMS.map((item) => (
+          <Tab
+            key={item.href}
+            href={item.href}
+            label={item.short}
+            Icon={item.Icon}
+            primary={item.primary}
+            pathname={pathname}
+          />
         ))}
       </nav>
     </div>
@@ -80,10 +93,11 @@ function Tab({
   primary?: boolean;
   pathname: string;
 }) {
-  const active = isActive(pathname, href);
+  const active = isActivePath(pathname, href);
 
   /**
-   * Scan is the solid centre action, per the reference. It is ink-filled rather
+   * Scan is the solid centre action, per the reference — third of six, which is
+   * as central as an even-numbered row gets. It is ink-filled rather
    * than lilac precisely BECAUSE lilac is what marks the current page — the two
    * would otherwise be the same circle, and an unvisited Scan would read as
    * "you are here". Ink says primary, lilac says current, and when Scan is both
@@ -108,9 +122,4 @@ function Tab({
       <span className="sr-only">{label}</span>
     </Link>
   );
-}
-
-/** `/connections/abc` keeps the People tab lit; `/` never matches anything. */
-function isActive(pathname: string, href: string): boolean {
-  return pathname === href || pathname.startsWith(`${href}/`);
 }

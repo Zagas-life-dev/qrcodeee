@@ -55,7 +55,11 @@ export function EnableNotifications({ title, body }: Props = {}) {
   if (permission !== "default" || state === "resolved") return null;
 
   return (
-    <div className="mt-6 rounded-brutal border-2 border-ink bg-bubble p-4 shadow-brutal">
+    // No margin of its own: this now renders both inline in a flow (the connect
+    // page) and as the first thing in a page's sticky aside (/qr), and a card
+    // that carries its own top margin cannot do the second without hanging
+    // below whatever it is supposed to align with.
+    <div className="rounded-brutal border-2 border-ink bg-bubble p-4 shadow-brutal">
       <p className="font-display text-sm">
         {title ?? "Get notified when your connections update their info"}
       </p>

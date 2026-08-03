@@ -171,7 +171,11 @@ export default async function ConnectPage({
           {/* §5.2: ask for notification permission right after a first
               successful connection, framed around the benefit — never on page
               load, which trains people to deny permanently. */}
-          {result.status === "new_connection" ? <EnableNotifications /> : null}
+          {result.status === "new_connection" ? (
+            <div className="mt-6">
+              <EnableNotifications />
+            </div>
+          ) : null}
 
           <Actions />
         </Shell>

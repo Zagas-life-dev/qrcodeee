@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { triggerFanOut } from "@/lib/notifications/trigger";
@@ -114,6 +114,10 @@ export async function updateProfile(
   // about a second.
   triggerFanOut(user.id);
 
+  // `name` and `bio` are both in the cached /u/{handle} payload. Tagged by
+  // profile id rather than by handle because this action knows the id and would
+  // need a lookup to learn the handle — see resolveHandle's two tags.
+  updateTag(`profile:${user.id}`);
   revalidatePath("/profile");
   return { status: "success", message: "Profile saved." };
 }

@@ -49,6 +49,29 @@ function assertBuildEnv() {
 }
 
 const nextConfig: NextConfig = {
+  /**
+   * Cache Components (site-spec S12). Enables `use cache` / `cacheLife` /
+   * `cacheTag`, and makes Partial Prerendering the default on every route.
+   *
+   * Enabled for /u/{handle}: it is the only anonymous, high-traffic route in the
+   * product, and PPR is what lets its public shell be cached while the
+   * viewer-dependent half — the block check, contact details — stays dynamic.
+   * That split is a security boundary before it is a performance one, and this
+   * flag is what makes the framework enforce it rather than review.
+   *
+   * Turned on NOW rather than at launch because it changes rendering defaults
+   * app-wide: doing it against a dozen routes is a different job from doing it
+   * against fifty.
+   *
+   * NOTE ON DURABILITY: `use cache` defaults to in-memory storage, so entries
+   * are scoped to one serverless instance and one deployment. That is fine for
+   * collapsing duplicate work within a request and across a warm instance, and
+   * it is NOT a CDN. If the public page's hit rate matters later, that is what
+   * `use cache: remote` or a cache handler is for — a deliberate step with a
+   * platform cost attached, not something to assume is already happening.
+   */
+  cacheComponents: true,
+
   experimental: {
     /**
      * Native page transitions via React's <ViewTransition>, which is the whole

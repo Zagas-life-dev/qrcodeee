@@ -11,9 +11,11 @@ import { shouldRun, timeBudgetMs } from "@/lib/notifications/schedule";
  *     dropped — a crashed run leaves events unprocessed by design)
  *
  * Runs on the Node runtime: the worker uses the service-role key and web-push,
- * neither of which belongs on the edge.
+ * neither of which belongs on the edge. That used to be pinned with
+ * `export const runtime = "nodejs"`, which `cacheComponents` does not permit —
+ * nodejs is the default, so the behaviour is unchanged, but nothing may
+ * reintroduce an edge runtime for this route.
  */
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**

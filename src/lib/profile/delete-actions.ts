@@ -1,5 +1,6 @@
 "use server";
 
+import { updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
@@ -51,6 +52,13 @@ export async function deleteAccount(): Promise<DeleteResult> {
           : "We couldn't delete your account. Please try again.",
     };
   }
+
+  // Before anything else can fail: /u/{handle} is a PUBLIC page, and a cached
+  // entry for a now-deleted profile would keep serving a scrubbed person's old
+  // name and photo to the open web for the length of `cacheLife`. Deletion is
+  // the one write here where a stale cache is a disclosure rather than a
+  // cosmetic lag, so it is invalidated first and outside the try below.
+  updateTag(`profile:${user.id}`);
 
   try {
     const admin = createAdminClient();

@@ -222,7 +222,10 @@ export function QrEditor({ initialStyle, connectUrl, expiresAt }: Props) {
     // row. Styling your code is a thing you do once; showing it is the thing
     // you do in front of another person, and on a phone the previous two-column
     // grid stacked into "here are some colour pickers, scroll for your code".
-    <div className="mt-8 space-y-8">
+    // No top margin: the page positions this (it is a `Columns` child now), and
+    // a component that spaces itself against a header it cannot see is what
+    // `Page`/`Columns` exist to replace.
+    <div className="space-y-8">
       <div className="flex flex-col items-center">
         {/* The frame is the app's; the fill inside it is the USER's chosen QR
             background, which is why this one surface doesn't take bg-paper. */}

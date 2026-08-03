@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, updateTag } from "next/cache";
 
 import { createClient } from "@/lib/supabase/server";
 import { avatarUrl } from "@/lib/cloudinary";
@@ -39,6 +39,8 @@ export async function savePhoto(version: number): Promise<PhotoResult> {
     return { ok: false, message: "Couldn't save your photo. Please try again." };
   }
 
+  // photo_url is part of the cached /u/{handle} payload (resolveHandle).
+  updateTag(`profile:${user.id}`);
   revalidatePath("/profile");
   return { ok: true };
 }
@@ -67,6 +69,7 @@ export async function removePhoto(): Promise<PhotoResult> {
     return { ok: false, message: "Couldn't remove your photo. Please try again." };
   }
 
+  updateTag(`profile:${user.id}`);
   revalidatePath("/profile");
   return { ok: true };
 }

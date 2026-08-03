@@ -1,6 +1,7 @@
+import { Suspense } from "react";
 import type { Metadata, Viewport } from "next";
 import { Toaster } from "sonner";
-import { Geist_Mono, Lilita_One, Outfit } from "next/font/google";
+import { Geist_Mono, Instrument_Serif, Lilita_One, Nunito, Outfit } from "next/font/google";
 import "./globals.css";
 
 import { AppListeners } from "@/components/app-listeners";
@@ -40,6 +41,34 @@ const lilitaOne = Lilita_One({
   subsets: ["latin"],
 });
 
+/**
+ * The two faces that exist ONLY for /u/{handle} skins (site-spec S7).
+ *
+ * `preload: false` on both, and that is the whole reason they can be offered at
+ * all. A page's font is chosen by its owner, so preloading these would fetch two
+ * families on every request in the app for the benefit of the minority of pages
+ * that picked one. Without preload they are fetched when a `--sk-font` rule
+ * actually matches — which is the behaviour a per-page choice needs.
+ *
+ * `display: "swap"` for the same reason: a page whose owner picked a serif must
+ * render its text immediately in the fallback rather than holding it blank while
+ * a font nobody preloaded arrives.
+ */
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
+  weight: "400",
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
+});
+
+const nunito = Nunito({
+  variable: "--font-nunito",
+  subsets: ["latin"],
+  display: "swap",
+  preload: false,
+});
+
 export const metadata: Metadata = {
   title: "Skan QR",
   description: "Share your contact details with a single scan.",
@@ -70,11 +99,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${outfit.variable} ${geistMono.variable} ${lilitaOne.variable} h-full antialiased`}
+      className={`${outfit.variable} ${geistMono.variable} ${lilitaOne.variable} ${instrumentSerif.variable} ${nunito.variable} h-full antialiased`}
     >
       <body className="flex min-h-full flex-col">
         <AppShell>{children}</AppShell>
-        <AppListeners />
+        {/* Reads the session, so it needs a boundary of its own or it blocks
+            every route in the app from prerendering. It renders no visible
+            output, which is what makes `null` the right fallback rather than a
+            placeholder. */}
+        <Suspense fallback={null}>
+          <AppListeners />
+        </Suspense>
         {/* richColors is dropped in favour of the app's own fills: it ships its
             own tinted backgrounds, which would sit inside a brutalist border
             looking like a toast from a different app. The `!` modifiers are not

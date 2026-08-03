@@ -15,12 +15,29 @@ import Link from "next/link";
  * component so pages don't pay for the layout they use.
  */
 
-type Width = "md" | "lg" | "xl";
+/**
+ * How much horizontal room a page is allowed.
+ *
+ * THE CAPS ARE PER BREAKPOINT, not one number, and that is the fix for "it's a
+ * phone app on a desktop". A reading column has an upper bound that has nothing
+ * to do with the display — but a page of CARDS does not, and the old flat
+ * `max-w-lg` treated both the same, so a connections list sat at 512px in the
+ * middle of a 1440px screen. Pages that lay out in columns now get room to do
+ * it; pages that are one column of prose or one form still stop where they
+ * should.
+ *
+ * `wide` is the dashboard default for anything that puts content side by side.
+ * `full` is for surfaces that manage their own panes — the page editor.
+ */
+type Width = "md" | "lg" | "xl" | "wide" | "full";
 
 const WIDTHS: Record<Width, string> = {
+  /** A single form or card. Never widens; a 60ch field is not better at 90ch. */
   md: "max-w-md",
-  lg: "max-w-lg",
-  xl: "max-w-3xl",
+  lg: "max-w-lg xl:max-w-2xl",
+  xl: "max-w-3xl xl:max-w-4xl",
+  wide: "max-w-3xl lg:max-w-5xl xl:max-w-6xl",
+  full: "max-w-none",
 };
 
 /** The standard scrolling page. */
@@ -35,10 +52,49 @@ export function Page({
 }) {
   return (
     <main
-      className={`mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-12 ${WIDTHS[width]} ${className}`}
+      className={`mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 ${WIDTHS[width]} ${className}`}
     >
       {children}
     </main>
+  );
+}
+
+/**
+ * A page's main column with a companion rail beside it from `xl` up.
+ *
+ * The dashboard shape, as one primitive rather than a grid hand-rolled per page.
+ * Below `xl` the aside simply follows the content, which is the correct phone
+ * order — secondary things after primary ones — so nothing needs a second
+ * markup path.
+ *
+ * `xl` AND NOT `lg`, because the shell's own rail already takes 16rem from `lg`.
+ * Splitting again at 1024px leaves a 24rem main column — narrower than the phone
+ * layout it replaced, which is the failure mode of adding columns for their own
+ * sake. From 1280px there is room for both.
+ *
+ * The aside STICKS below the header. Its content (notification opt-in, account
+ * actions, the public link) is reference material you want while scrolling the
+ * thing beside it; scrolling it away would leave the right third of a tall page
+ * empty, which is the same wasted space this layout exists to reclaim.
+ */
+export function Columns({
+  aside,
+  className = "",
+  children,
+}: {
+  aside: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className={`mt-8 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_19rem] xl:gap-8 ${className}`}
+    >
+      <div className="min-w-0">{children}</div>
+      <aside className="flex flex-col gap-4 xl:sticky xl:top-[calc(var(--shell-header-h)+1.5rem)]">
+        {aside}
+      </aside>
+    </div>
   );
 }
 

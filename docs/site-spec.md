@@ -140,25 +140,34 @@ spans at 2 columns precisely because of this. The split tree needs an equivalent
 and it must not be a second stored layout.
 
 **Container queries, not JavaScript measurement.** Each split renders as a flex
-container that is its own containment context, and collapses to stacked when its
-own width can't carry two children:
+container whose PANES are the containment contexts, and collapses to stacked when
+the space it was given can't carry two children:
 
 ```css
-.cell-split {
-  container-type: inline-size;
-  display: flex;
-  gap: 0.75rem;
-}
+/* THE CONTAINMENT GOES ON THE PANES, NOT THE SPLIT. An element cannot
+   container-query itself: with `container-type` on `.cell-split`, its own
+   @container rule resolves against the next container UP the tree, so a nested
+   split would collapse based on some unrelated ancestor's width. Each pane is a
+   container, so the split inside it queries the space it was actually given.
+   `.site-bento` provides the same for the root split, which has no pane above
+   it. (v2 of this spec had this wrong; the implementation is correct.) */
+.site-bento,
+.cell-pane { container-type: inline-size; min-width: 0; }
+
+.cell-split { display: flex; gap: 0.75rem; }
 .cell-split[data-dir="row"] { flex-direction: row; }
 .cell-split[data-dir="col"] { flex-direction: column; }
 
-/* MIN_CELL ≈ 10rem — a link button with a legible label. Below twice that
-   plus the gap, a row split cannot honour its direction. */
-@container (max-width: 21rem) {
+.cell-split[data-dir="row"] > .cell-pane { flex: var(--ratio, 0.5) 1 0; }
+.cell-split[data-dir="col"] > .cell-pane { flex: 0 0 auto; }
+
+/* 21rem ≈ 336px — two 10rem panes plus the gap. Below that a row split cannot
+   give either child a legible width. Resetting flex is not tidying: stacked,
+   `flex: var(--ratio)` would divide HEIGHT and clip whichever block drew the
+   short half. */
+@container (width < 21rem) {
   .cell-split[data-dir="row"] { flex-direction: column; }
-  /* The ratio applied to a column split would size HEIGHT, which is wrong.
-     Children size to content once stacked. */
-  .cell-split[data-dir="row"] > .cell { flex: 1 1 auto; }
+  .cell-split[data-dir="row"] > .cell-pane { flex: 0 0 auto; }
 }
 ```
 
@@ -204,9 +213,14 @@ split.
 - **Public renderer: no library at all.** A recursive server component over
   `Cell`, ~50 lines, zero client JS. The public page is the highest-traffic
   route in the app and must not ship an editor's dependency tree.
-- **Editor: `react-resizable-panels`.** Its `PanelGroup`/`Panel`/
-  `PanelResizeHandle` nest arbitrarily and map to `Cell` almost 1:1, it has real
-  touch support, and it is small.
+- **Editor: no layout library either — SUPERSEDED.** `react-resizable-panels`
+  was the plan and was dropped during implementation. It owns its own layout
+  model (panel groups, percentages) and renders its own DOM, so it would have to
+  be kept in sync with the Cell tree that is already the source of truth, and the
+  editor would stop looking like the page it edits. A pointer handler writing
+  `--ratio` is ~40 lines, has no sync problem, and lets the editor reuse the
+  public renderer's own classes — which is what makes the preview genuinely
+  WYSIWYG, container-query collapse included.
 - **Not `react-mosaic`.** It pulls `react-dnd` plus a DnD backend; the HTML5
   backend has no touch support, so a mobile editor needs `react-dnd-touch-backend`
   on top. That is a lot of bundle and a lot of desktop-windowing assumption for

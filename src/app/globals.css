@@ -138,6 +138,19 @@
      below itself. Page padding refers to this so the last row of a list clears
      the dock instead of sitting under it. */
   --tab-bar-h: 5rem;
+
+  /**
+   * The sticky header's height, WITHOUT the safe-area inset — 44px of bell plus
+   * 2×10px of padding plus the 2px underline.
+   *
+   * Everything that has to sit below the header refers to this: the desktop
+   * rail's sticky offset, the editor toolbar's, and any page pinning a column
+   * (see `Columns` in components/page.tsx). It is a measured constant rather
+   * than something read from the DOM because the alternative is a layout effect
+   * running on every route, and the header's height is fixed by its tallest
+   * child — which is a 44px touch target that is not going to change.
+   */
+  --shell-header-h: 4.125rem;
 }
 
 :root {
@@ -577,6 +590,625 @@
   background: color-mix(in oklab, var(--color-ink) 25%, transparent);
 }
 
+/**
+ * The strip the floating dock occupies.
+ *
+ * This used to be a conditional Tailwind class in AppShell, applied only when
+ * someone was signed in. It can't be any more: the dock now renders inside a
+ * Suspense boundary (app-shell.tsx), so at the moment the content wrapper
+ * renders, nothing knows whether a dock is coming. The DOM answers instead.
+ *
+ * THE DEFAULT IS "RESERVED", AND THE DIRECTION IS THE POINT. Getting this
+ * backwards — no padding by default, added when a dock appears — fails toward
+ * the last row of a list sitting permanently under the bar and untappable,
+ * which is the exact bug the original comment warned about. Failing toward a
+ * little unused space at the bottom of a signed-out page is the harmless
+ * direction, and it is also what a browser without `:has()` support gets.
+ */
+.shell-content {
+  padding-bottom: calc(var(--tab-bar-h) + env(safe-area-inset-bottom));
+}
+
+/* From `sm` the dock is hidden (`sm:hidden` on its wrapper), so nothing is
+   occupying that strip whether or not the element exists. */
+@media (width >= 40rem) {
+  .shell-content {
+    padding-bottom: 0;
+  }
+}
+
+/* Signed out: no dock in the tree, so give the space back. */
+body:not(:has([data-tab-bar])) .shell-content {
+  padding-bottom: 0;
+}
+
+/**
+ * The desktop rail.
+ *
+ * Sticky rather than fixed, and that is what keeps it a flex sibling of the
+ * content: fixed would take it out of flow and every page would then need its
+ * own left padding to avoid sliding underneath — the exact per-page spacing
+ * arithmetic the shell exists to stop.
+ *
+ * `align-self: flex-start` is load-bearing. A flex child stretches to the row's
+ * height by default, and a full-height box has nothing left to scroll past, so
+ * `position: sticky` would silently do nothing. Height is then pinned to the
+ * viewport below the header so a long list of destinations scrolls inside the
+ * rail instead of pushing it taller than the screen.
+ */
+.shell-side {
+  position: sticky;
+  top: calc(var(--shell-header-h) + env(safe-area-inset-top));
+  align-self: flex-start;
+  height: calc(100dvh - var(--shell-header-h) - env(safe-area-inset-top));
+}
+
+/**
+ * The page editor's inspector rail (`xl` and up).
+ *
+ * Pinned below BOTH sticky bars — the app header and the editor's own toolbar —
+ * and given exactly the height that leaves, so the panel scrolls inside itself
+ * while the canvas scrolls beside it. Without the explicit height a tall panel
+ * would push the page taller than the viewport and the sticky offset would have
+ * nothing left to stick against.
+ *
+ * `--editor-toolbar-h` is the toolbar's resting height (title + handle + 2×12px
+ * padding + its 2px rule). It is approximate BY DESIGN: the toolbar wraps its
+ * controls on a narrow window and gets taller, but this rule only applies at
+ * `xl`, where it never wraps. The 1.25rem is the grid gap above the rail.
+ */
+.site-editor-rail {
+  --editor-toolbar-h: 4.9rem;
+  position: sticky;
+  top: calc(
+    var(--shell-header-h) + env(safe-area-inset-top) + var(--editor-toolbar-h) + 1.25rem
+  );
+  height: calc(
+    100dvh - var(--shell-header-h) - env(safe-area-inset-top) - var(--editor-toolbar-h) -
+      2.5rem
+  );
+}
+
+/**
+ * ── Site layout ───────────────────────────────────────────────────────────
+ *
+ * The bento split tree (site-spec S4). One stored layout, correct on a 390px
+ * phone and a desktop, with no JavaScript measuring anything.
+ *
+ * THE CONTAINMENT IS ON THE PANES, NOT THE SPLIT, and getting this backwards is
+ * the obvious mistake: an element cannot container-query ITSELF. Putting
+ * `container-type` on `.cell-split` would make its own `@container` rule
+ * resolve against the next container UP the tree, so a deeply nested split would
+ * collapse based on the width of something else entirely. Each pane is a
+ * container instead, so the split inside it queries the space it was actually
+ * given.
+ *
+ * The root split has no pane above it, which is what `.site-bento` is for.
+ */
+.site-bento,
+.cell-pane {
+  container-type: inline-size;
+  /* Flex items refuse to shrink below their content without this, which is how
+     a long word in one pane pushes the whole row wider than the screen. */
+  min-width: 0;
+}
+
+.cell-split {
+  display: flex;
+  gap: 0.75rem;
+}
+.cell-split[data-dir="row"] {
+  flex-direction: row;
+}
+.cell-split[data-dir="col"] {
+  flex-direction: column;
+}
+
+/* `--ratio` is the pane's share, set per child in site-render.tsx. Basis 0 so
+   the ratio governs the whole width rather than dividing the leftover. */
+.cell-split[data-dir="row"] > .cell-pane {
+  flex: var(--ratio, 0.5) 1 0;
+}
+.cell-split[data-dir="col"] > .cell-pane {
+  flex: 0 0 auto;
+}
+
+/**
+ * The collapse. 21rem ≈ 336px, which is two 10rem panes plus the gap — below
+ * that a row split cannot give either child a legible width.
+ *
+ * Resetting flex is not tidying: once stacked, `flex: var(--ratio) 1 0` would be
+ * dividing HEIGHT by the ratio, so a 30/70 split would clip whichever block drew
+ * the short half. Stacked panes size to their content, always.
+ */
+@container (width < 21rem) {
+  .cell-split[data-dir="row"] {
+    flex-direction: column;
+  }
+  .cell-split[data-dir="row"] > .cell-pane {
+    flex: 0 0 auto;
+  }
+}
+
+/**
+ * The editor's resize handle.
+ *
+ * ABSOLUTELY POSITIONED, so it takes no space in the flex row. A handle that was
+ * a third flex child would consume width and shift the panes, meaning the editor
+ * would no longer show the layout it is editing — and WYSIWYG is the whole
+ * reason the editor reuses these classes rather than a layout library's DOM.
+ *
+ * `touch-action: none` is what makes the drag work on a phone at all: without
+ * it the browser claims the gesture as a scroll before the pointer handler sees
+ * the second event.
+ */
+.editor-split {
+  position: relative;
+}
+
+.editor-resize {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* Centred on the boundary between the panes. */
+  left: calc(var(--ratio, 0.5) * 100%);
+  translate: -50% 0;
+  /* Wider than it looks: the visible line is 2px, the target is 44px, which is
+     the touch minimum every other control in this app is held to. */
+  width: 2.75rem;
+  cursor: col-resize;
+  touch-action: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-resize::before {
+  content: "";
+  width: 0.25rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 2px solid var(--color-ink);
+  background: var(--color-paper);
+}
+
+/* The handle belongs to a row split. Once the container query stacks that split
+   the boundary it points at no longer exists, so it goes with it. */
+@container (width < 21rem) {
+  .cell-split[data-dir="row"] > .editor-resize {
+    display: none;
+  }
+}
+
+/**
+ * `stack-scroll`: cards pile up as the page scrolls past them.
+ *
+ * Plain `position: sticky` rather than a scroll-driven animation — it needs no
+ * `animation-timeline` support, works in every engine this app targets, and the
+ * effect IS the stickiness rather than something layered on top of it. The
+ * offset clears the sticky header so a pinned card doesn't slide under it.
+ */
+.site-stack-item {
+  position: sticky;
+  top: 4.5rem;
+}
+
+/**
+ * Reduced motion turns the pile back into an ordinary stack. Sticky positioning
+ * is not an animation, but a card that pins itself and gets overlapped by the
+ * next one is scroll-linked movement, which is the thing this setting is about.
+ * Degrading to `single` is exactly what the spec asks for.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .site-stack-item {
+    position: static;
+  }
+}
+
+/* ==========================================================================
+   Page skins (site-spec S7)
+   ==========================================================================
+   Six visual languages over ONE set of tokens. A block component never names a
+   colour or a shadow — it applies `.sk-surface` or `.sk-chip`, and the skin on
+   the wrapper decides what those mean. That is what keeps six looks from being
+   six renderers.
+
+   THE TOKEN CONTRACT. Every skin must set all of these, because a missing one
+   inherits from whichever skin was defined above it and produces a hybrid
+   nobody designed:
+
+     --sk-page        page backdrop (painted by .site-theme::before)
+     --sk-ink         body text
+     --sk-muted       secondary text — captions, hints, @handles
+     --sk-bg          surface fill
+     --sk-border      surface border, as a full shorthand ("none" is valid)
+     --sk-shadow      surface shadow
+     --sk-radius      surface corner
+     --sk-blur        backdrop-filter, or "none"
+     --sk-accent      the one saturated colour: buttons, active states
+
+   Contrast between --sk-ink and --sk-bg is asserted in theme.test.ts at 4.5:1.
+   These are strangers' pages; nobody is going to eyeball six skins per release.
+
+   WHAT IS DELIBERATELY NOT THEMED: the contact card and the connect/save
+   actions on /u/{handle}. They keep app styling under every skin. A page owner
+   restyling the "Save contact" affordance is precisely the move a phishing page
+   would make, so the one surface that says "this is Skan QR and this is what
+   tapping does" is not customer-configurable. */
+
+.site-theme {
+  font-family: var(--sk-font, var(--font-sans));
+  color: var(--sk-ink);
+  position: relative;
+}
+
+/* The backdrop is a fixed pseudo-element rather than a background on the
+   wrapper: the site sections are a band in the middle of the page, and a
+   background there would paint a stripe. `-1` keeps it behind content without
+   creating a stacking context that traps the sheet dialogs.
+
+   SCOPED TO THE PAGE ROOT, not to `.site-theme`. The editor's picker renders
+   six live preview tiles, each carrying a `data-skin` so it is styled by this
+   same CSS — and on the bare class every one of them would paint its own
+   full-viewport backdrop, six fixed overlays deep. The tiles get
+   `.site-theme-swatch` instead, which puts the same paint inside the tile. */
+.site-theme-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: var(--sk-page);
+  pointer-events: none;
+}
+
+/* The page backdrop, contained. Used by the editor's preview tiles. */
+.site-theme-swatch {
+  background: var(--sk-page);
+}
+
+/* Corner and spacing are MULTIPLIERS on whatever the skin set, never absolute
+   values — see SITE_RADII. A "sharper" clay is still clay. */
+.site-theme {
+  --sk-radius-scale: 1;
+  --sk-density: 1;
+}
+.site-theme[data-radius="sharp"] { --sk-radius-scale: 0.25; }
+.site-theme[data-radius="round"] { --sk-radius-scale: 1.6; }
+.site-theme[data-density="tight"] { --sk-density: 0.6; }
+.site-theme[data-density="roomy"] { --sk-density: 1.5; }
+
+/* The gap between blocks and between sections. Set here rather than with
+   Tailwind's `space-y-*` so one control moves both. */
+.site-theme .site-stack {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--sk-density) * 1rem);
+}
+.site-theme.site-theme-page {
+  gap: calc(var(--sk-density) * 2rem);
+}
+
+.sk-surface {
+  background: var(--sk-bg);
+  border: var(--sk-border);
+  border-radius: calc(var(--sk-radius) * var(--sk-radius-scale));
+  box-shadow: var(--sk-shadow);
+  backdrop-filter: var(--sk-blur);
+  color: var(--sk-ink);
+}
+
+.sk-chip {
+  background: var(--sk-bg);
+  border: var(--sk-border);
+  /* Pills stay pills in every skin — a chip is recognised by its shape, and a
+     square one reads as a different control rather than as the same one
+     restyled. The surface radius is the thing that varies. */
+  border-radius: 999px;
+  box-shadow: var(--sk-shadow);
+  backdrop-filter: var(--sk-blur);
+  color: var(--sk-ink);
+}
+
+.sk-muted {
+  color: var(--sk-muted);
+}
+
+/* A divider that agrees with whatever the skin's border is — including "none",
+   which is exactly right for clay: that skin has no edges anywhere and a rule
+   drawn across a caption would be the only one on the page. */
+.sk-rule-t {
+  border-top: var(--sk-border);
+}
+
+.sk-accent {
+  background: var(--sk-accent);
+}
+
+/* --- neo: the app's own language, and the default ----------------------- */
+.site-theme[data-skin="neo"] {
+  --sk-page: #ffe27f;
+  --sk-ink: #0b0b0b;
+  --sk-muted: #4a4a4a;
+  --sk-bg: #fffdf7;
+  --sk-border: 2px solid #0b0b0b;
+  --sk-shadow: 4px 4px 0 #0b0b0b;
+  --sk-radius: 22px;
+  --sk-blur: none;
+  --sk-accent: #bca6f7;
+}
+
+/* --- minimal: the absence of chrome, not a lighter version of it -------- */
+.site-theme[data-skin="minimal"] {
+  --sk-page: #fafaf9;
+  --sk-ink: #18181b;
+  --sk-muted: #6b7280;
+  --sk-bg: transparent;
+  /* A hairline, not nothing: with no border and no shadow, adjacent blocks
+     merge into one field of text and the structure disappears. */
+  --sk-border: 1px solid #e4e4e7;
+  --sk-shadow: none;
+  --sk-radius: 6px;
+  --sk-blur: none;
+  --sk-accent: #18181b;
+}
+
+/* --- glass: the only dark skin ----------------------------------------- */
+.site-theme[data-skin="glass"] {
+  --sk-page: radial-gradient(1200px 600px at 15% -10%, #4c1d95 0%, transparent 60%),
+    radial-gradient(900px 500px at 95% 10%, #0e7490 0%, transparent 55%), #0b1020;
+  --sk-ink: #f4f4f5;
+  --sk-muted: #b9bcc9;
+  --sk-bg: rgb(255 255 255 / 0.1);
+  --sk-border: 1px solid rgb(255 255 255 / 0.22);
+  --sk-shadow: 0 8px 32px rgb(0 0 0 / 0.35);
+  --sk-radius: 18px;
+  --sk-blur: blur(14px);
+  --sk-accent: #a78bfa;
+}
+
+/* Frosted panels need something behind them to frost. Without a backdrop-filter
+   the fill is a 10%-white wash over the gradient, which on the dark end of that
+   gradient is not enough separation to read as a panel — so the fallback is a
+   solid-enough fill rather than the translucent one. */
+@supports not (backdrop-filter: blur(1px)) {
+  .site-theme[data-skin="glass"] {
+    --sk-bg: rgb(30 34 54 / 0.92);
+  }
+}
+
+/* --- clay: soft, extruded, no borders anywhere -------------------------- */
+.site-theme[data-skin="clay"] {
+  --sk-page: #e9e5f6;
+  --sk-ink: #2b2740;
+  --sk-muted: #635d84;
+  --sk-bg: #f4f1fd;
+  --sk-border: none;
+  /* Three shadows doing three jobs: drop, opposite-side light, and an inner
+     highlight. Remove any one and it stops looking pressed and starts looking
+     blurry. */
+  --sk-shadow:
+    10px 10px 20px rgb(90 78 140 / 0.18), -8px -8px 18px rgb(255 255 255 / 0.9),
+    inset 2px 2px 5px rgb(255 255 255 / 0.75);
+  --sk-radius: 30px;
+  --sk-blur: none;
+  --sk-accent: #8b7cf6;
+}
+
+/* --- maximal: loud on purpose ------------------------------------------ */
+.site-theme[data-skin="maximal"] {
+  --sk-page: repeating-linear-gradient(
+    45deg,
+    #ffd93d 0 22px,
+    #ff2e63 22px 44px,
+    #08d9d6 44px 66px
+  );
+  --sk-ink: #12100e;
+  --sk-muted: #4b4540;
+  /* Opaque white, non-negotiable: the page behind this is a three-colour
+     diagonal stripe, and any transparency at all makes body text unreadable. */
+  --sk-bg: #ffffff;
+  --sk-border: 3px solid #12100e;
+  --sk-shadow: 7px 7px 0 #ff2e63, 14px 14px 0 #08d9d6;
+  --sk-radius: 4px;
+  --sk-blur: none;
+  --sk-accent: #ff2e63;
+}
+
+/* --- skeu: bevels and gradients ---------------------------------------- */
+.site-theme[data-skin="skeu"] {
+  --sk-page: linear-gradient(#cfc6b4, #b9ae99);
+  --sk-ink: #241f18;
+  --sk-muted: #5c5346;
+  --sk-bg: linear-gradient(#fffefb, #e7e1d5);
+  --sk-border: 1px solid #a1937b;
+  --sk-shadow: 0 2px 4px rgb(0 0 0 / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.95);
+  --sk-radius: 10px;
+  --sk-blur: none;
+  --sk-accent: #4a7ab8;
+}
+
+/* --- fonts -------------------------------------------------------------
+   `preload: false` on the optional families (layout.tsx): the skin is chosen
+   per page, so preloading all five would fetch four fonts nobody's page uses on
+   every request. They load when a rule matches instead. */
+.site-theme[data-font="sans"] {
+  --sk-font: var(--font-outfit), system-ui, sans-serif;
+}
+.site-theme[data-font="display"] {
+  --sk-font: var(--font-lilita-one), var(--font-outfit), sans-serif;
+}
+.site-theme[data-font="serif"] {
+  --sk-font: var(--font-instrument-serif), Georgia, serif;
+}
+.site-theme[data-font="rounded"] {
+  --sk-font: var(--font-nunito), var(--font-outfit), sans-serif;
+}
+.site-theme[data-font="mono"] {
+  --sk-font: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* --- per-block presentation (site-spec S7) ------------------------------
+   Three axes, all set from data attributes and one numeric custom property.
+   Nothing here is interpolated from stored text — see block-style.ts. */
+/* THE CAROUSEL'S EQUAL HEIGHTS COME FROM HERE, not from measuring anything.
+   The row-scroll `ul` is a flex row, so `align-items: stretch` already makes
+   every `li` as tall as the tallest — but a block whose surface sizes to its
+   own content leaves that height empty, and the row reads as ragged cards in
+   equal-height boxes. Making the block a column and letting its single child
+   grow is what pushes the tallest item's height into all of them.
+
+   `min-height: 0` on the child is not decoration: without it a flex child
+   refuses to shrink below its content, and a long text block in a bento pane
+   overflows its cell instead of scrolling. */
+.site-block {
+  display: flex;
+  flex-direction: column;
+  --block-scale: 1;
+  /* The block's own root size. Everything inside uses `em`, so this one
+     declaration scales the type AND the padding together. A block whose text
+     grows while its box does not is a block whose text hits the border. */
+  font-size: calc(var(--block-scale) * 1rem);
+  height: 100%;
+}
+
+.site-block > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.site-block[data-align="center"] {
+  text-align: center;
+}
+.site-block[data-align="end"] {
+  text-align: end;
+}
+
+/* Flex children inside a block (link rows, chip lists) do not follow
+   `text-align` — the alignment has to reach the axis too, or centring a links
+   block centres each label inside a full-width pill and moves nothing. */
+.site-block[data-align="center"] :is(.sk-chip, .sk-surface) {
+  justify-content: center;
+}
+.site-block[data-align="center"] > :is(ul, ol) {
+  align-items: center;
+}
+.site-block[data-align="end"] > :is(ul, ol) {
+  align-items: flex-end;
+}
+
+/* `plain` drops the box. A heading in its own bordered, shadowed card is the
+   single thing that makes a built page look built rather than designed. */
+.site-block[data-tone="plain"] :is(.sk-surface, .sk-chip),
+.site-block[data-tone="plain"].sk-surface {
+  background: none;
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+
+/* `accent` fills with the page's accent. --sk-on-accent is chosen for it by
+   `onAccent()`, never by the person picking the colour. */
+.site-block[data-tone="accent"] :is(.sk-surface, .sk-chip) {
+  background: var(--sk-accent);
+  color: var(--sk-on-accent);
+}
+
+.site-block[data-tone="accent"] .sk-muted {
+  /* The muted token is computed against the SURFACE, not against an arbitrary
+     accent, so it cannot be trusted here. Falling back to the guaranteed
+     foreground at reduced weight keeps the hierarchy without a second colour
+     nobody checked. */
+  color: var(--sk-on-accent);
+  opacity: 0.75;
+}
+
+/* --- press feedback, de-neo'd -----------------------------------------
+   `nb-press` is neo's own physics: it translates the element by its offset
+   shadow's distance and swaps in a hard ink shadow. That is exactly right on
+   neo and wrong everywhere else — hovering a link on the glass skin would snap
+   its soft blurred shadow to a 2px ink offset, which is the one moment the page
+   stops looking like the skin its owner chose.
+
+   Blocks keep the class (they are shared with the editor, which is always neo),
+   so the override happens here: inside a non-neo page the press keeps the
+   skin's own shadow and expresses itself as movement instead. */
+.site-theme:not([data-skin="neo"]) :is(.nb-press, .nb-press-sm) {
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .site-theme:not([data-skin="neo"]) :is(.nb-press, .nb-press-sm):hover:not(:disabled) {
+    translate: 0;
+    box-shadow: var(--sk-shadow);
+    transform: translateY(-1px);
+  }
+}
+
+.site-theme:not([data-skin="neo"]) :is(.nb-press, .nb-press-sm):active:not(:disabled) {
+  translate: 0;
+  box-shadow: var(--sk-shadow);
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-theme:not([data-skin="neo"]) :is(.nb-press, .nb-press-sm):hover:not(:disabled),
+  .site-theme:not([data-skin="neo"]) :is(.nb-press, .nb-press-sm):active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/**
+ * Gallery block (site-spec S6).
+ *
+ * CSS multi-column, not a measured JS layout — see the note in
+ * `gallery-block.tsx`. `column-count` responds to the CELL, not the viewport:
+ * a gallery in a quarter-width bento pane gets two columns while one across a
+ * full band gets four, from the same markup, because `.cell-pane` is already a
+ * container.
+ *
+ * `break-inside: avoid` is the whole trick. Without it a column break can land
+ * mid-image and split one photograph across two columns.
+ */
+.site-gallery-frame {
+  container-type: inline-size;
+}
+
+.site-gallery {
+  column-count: 2;
+  column-gap: 0.5rem;
+}
+
+@container (width >= 30rem) {
+  .site-gallery {
+    column-count: 3;
+  }
+}
+
+@container (width >= 48rem) {
+  .site-gallery {
+    column-count: 4;
+  }
+}
+
+.site-gallery-item {
+  break-inside: avoid;
+  margin-bottom: 0.5rem;
+  /* `--i` is the item's index, capped by the renderer. The animation is
+     scroll-agnostic on purpose: an IntersectionObserver would be JS, and this
+     block has none. */
+  animation: nb-rise 0.4s calc(var(--i, 0) * 60ms) backwards
+    cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-gallery-item {
+    animation: none;
+  }
+}
+
 /* Page content arriving. Applied by the shell, not per page. */
 @keyframes nb-rise {
   from {
@@ -594,17 +1226,20 @@
    content. A moving header removes the one fixed reference point that tells
    someone the CONTENT changed rather than the whole app. */
 ::view-transition-group(shell-header),
+::view-transition-group(shell-side),
 ::view-transition-group(shell-tabs) {
   animation: none;
   z-index: 100;
 }
 ::view-transition-old(shell-header),
+::view-transition-old(shell-side),
 ::view-transition-old(shell-tabs) {
   /* Without this both copies are briefly painted and the bar appears to
      double-expose mid-navigation. */
   display: none;
 }
 ::view-transition-new(shell-header),
+::view-transition-new(shell-side),
 ::view-transition-new(shell-tabs) {
   animation: none;
 }

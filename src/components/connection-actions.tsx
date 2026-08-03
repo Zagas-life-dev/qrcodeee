@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useLayoutEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -66,6 +66,30 @@ export function ConnectionActions({
     menuRef.current?.close();
     setConfirming(null);
   }
+
+  /**
+   * Close both sheets when this route is navigated away from.
+   *
+   * Required since Cache Components (next.config.ts). Next now keeps recently
+   * visited routes mounted in React's <Activity> in "hidden" mode instead of
+   * unmounting them, so nothing tears this component down on navigation — and a
+   * <dialog> holds its open state in the DOM, not in React state, so it survives
+   * untouched. Without this, opening the menu, navigating back to the list and
+   * later returning lands the user on a modal sheet they never opened, with the
+   * page behind it inert.
+   *
+   * useLayoutEffect rather than useEffect: effects are cleaned up when a route
+   * is hidden, and the layout variant runs before the browser paints the hidden
+   * state, so the sheet never flashes on the way out.
+   */
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    const report = reportRef.current;
+    return () => {
+      menu?.close();
+      report?.close();
+    };
+  }, []);
 
   function run(action: () => Promise<ActionResult>) {
     startTransition(async () => {

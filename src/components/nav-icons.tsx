@@ -1,11 +1,11 @@
 /**
  * Navigation glyphs.
  *
- * Hand-rolled rather than pulled from an icon package: there are six of them,
- * they never change, and a dependency would ship several hundred more to a
+ * Hand-rolled rather than pulled from an icon package: there is a handful of
+ * them, they never change, and a dependency would ship several hundred more to a
  * bundle this app serves to phones on conference wifi.
  *
- * All six share a 24px box, a 2px stroke and round joins so they sit on the same
+ * They all share a 24px box, a 2px stroke and round joins so they sit on the same
  * optical weight as each other and as the display face. They inherit
  * currentColor, so an active tab tints the glyph by changing text colour alone.
  */
@@ -66,6 +66,19 @@ export function PersonIcon({ className }: IconProps) {
     <svg {...BASE} className={className}>
       <circle cx="12" cy="8" r="3.75" />
       <path d="M4.5 20a7.5 7.5 0 0 1 15 0" />
+    </svg>
+  );
+}
+
+/** /site — a page with a header band, which is what a section actually is. */
+export function PageIcon({ className }: IconProps) {
+  return (
+    <svg {...BASE} className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2.5" />
+      <path d="M3 9.5h18" />
+      {/* Zero-length segments; they render as dots because the base sets
+          strokeLinecap="round". */}
+      <path d="M6.5 6.75h.01M9.5 6.75h.01" />
     </svg>
   );
 }

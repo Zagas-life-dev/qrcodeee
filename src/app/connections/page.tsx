@@ -53,7 +53,7 @@ export default async function ConnectionsPage({
   const pages = Math.ceil(total / PAGE_SIZE);
 
   return (
-    <Page>
+    <Page width="wide">
       <PageHeader
         title="Connections"
         actions={
@@ -96,7 +96,13 @@ export default async function ConnectionsPage({
         // Discrete cards rather than divider rules: a hairline divider is the
         // soft-depth idiom this language replaces, and every row here already
         // carries two controls that need a surface to sit on.
-        <AnimatedList className="mt-6 space-y-3">
+        //
+        // Two columns from `xl`, and the breakpoint is chosen by the ROW rather
+        // than by the viewport: each card is an avatar, two lines of text and
+        // two controls, which needs about 26rem before the name starts
+        // truncating against the Save button. One column of 25 cards down a
+        // 1440px display was the clearest symptom of the phone layout.
+        <AnimatedList className="mt-6 grid gap-3 xl:grid-cols-2">
           {results.map((row, index) => {
             // §8: a deleted account keeps its connection and renders as a
             // placeholder rather than a broken reference.

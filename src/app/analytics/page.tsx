@@ -5,12 +5,12 @@ import type { NetworkingStats } from "@/lib/supabase/database.types";
 import { WeeklyChart } from "@/components/analytics/weekly-chart";
 import {
   ActionLink,
+  Columns,
   EmptyState,
   Notice,
   Page,
   PageHeader,
   Pill,
-  Section,
 } from "@/components/page";
 
 export const metadata = { title: "Analytics · Skan QR" };
@@ -55,7 +55,7 @@ export default async function AnalyticsPage() {
   const delta = stats.new_30d - stats.new_prev_30d;
 
   return (
-    <Page width="xl">
+    <Page width="wide">
       <PageHeader
         title="Analytics"
         actions={
@@ -66,7 +66,7 @@ export default async function AnalyticsPage() {
       />
 
       {stats.active === 0 && stats.scans_total === 0 ? (
-        <div className="mt-8">
+        <div className="mt-8 max-w-2xl">
           <EmptyState
             action={
               <ActionLink href="/qr" tone="primary" size="lg">
@@ -82,6 +82,9 @@ export default async function AnalyticsPage() {
         <>
           {/* Hero figure + KPI row. A single current value is a stat tile, never
               a one-bar chart. */}
+          {/* The KPI row spans the full width above both columns — it is the
+              summary the rest of the page elaborates on, so it should not sit
+              inside one of them. */}
           <section className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
             <Stat
               value={stats.active}
@@ -101,57 +104,71 @@ export default async function AnalyticsPage() {
             <Stat value={stats.scans_total} label="Scans, all time" />
           </section>
 
-          <section className="mt-4 grid gap-3 sm:grid-cols-2">
-            <WeeklyChart
-              title="New connections"
-              unit="connection"
-              hue="blue"
-              points={weeks.map((w) => ({
-                label: w.label,
-                full: w.full,
-                value: w.connections,
-              }))}
-            />
-            <WeeklyChart
-              title="Code scans"
-              unit="scan"
-              hue="orange"
-              points={weeks.map((w) => ({
-                label: w.label,
-                full: w.full,
-                value: w.scans,
-              }))}
-            />
-          </section>
+          {/* The measures fill the width; the things to DO about them ride
+              alongside on a display wide enough, instead of waiting two screens
+              below the charts. */}
+          <Columns
+            className="mt-4"
+            aside={
+              <>
+                <div className="rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
+                  <h2 className="font-display text-base">Worth doing something about</h2>
+                  <ul className="mt-3 space-y-3">
+                    <Action
+                      count={stats.unsaved}
+                      singular="connection whose contact you haven't saved"
+                      plural="connections whose contacts you haven't saved"
+                      empty="You've saved every connection's contact."
+                      href="/connections"
+                      cta="Save them"
+                    />
+                    <Action
+                      count={stats.stale}
+                      singular="saved card that's now out of date"
+                      plural="saved cards that are now out of date"
+                      empty="Every card you've saved is current."
+                      href="/connections"
+                      cta="Refresh"
+                    />
+                  </ul>
+                </div>
 
-          {/* The part with a next step attached. */}
-          <Section title="Worth doing something about">
-            <ul className="space-y-3">
-              <Action
-                count={stats.unsaved}
-                singular="connection whose contact you haven't saved"
-                plural="connections whose contacts you haven't saved"
-                empty="You've saved every connection's contact."
-                href="/connections"
-                cta="Save them"
+                <p className="text-xs font-medium text-ink/70">
+                  Scan counts come from your own QR codes, which expire every 15
+                  minutes — a scan is counted when someone opens one, whether or
+                  not it became a new connection. We don&apos;t track who saved
+                  your card: that&apos;s private to them.
+                </p>
+              </>
+            }
+          >
+            {/* Side by side only once the main column can give each chart its
+                own readable width — inside a two-column page that is 2xl, not
+                xl. A 12-week bar chart at 300px is a sparkline with axis
+                labels. */}
+            <div className="grid gap-3 2xl:grid-cols-2">
+              <WeeklyChart
+                title="New connections"
+                unit="connection"
+                hue="blue"
+                points={weeks.map((w) => ({
+                  label: w.label,
+                  full: w.full,
+                  value: w.connections,
+                }))}
               />
-              <Action
-                count={stats.stale}
-                singular="saved card that's now out of date"
-                plural="saved cards that are now out of date"
-                empty="Every card you've saved is current."
-                href="/connections"
-                cta="Refresh"
+              <WeeklyChart
+                title="Code scans"
+                unit="scan"
+                hue="orange"
+                points={weeks.map((w) => ({
+                  label: w.label,
+                  full: w.full,
+                  value: w.scans,
+                }))}
               />
-            </ul>
-          </Section>
-
-          <p className="mt-8 text-xs font-medium text-ink/70">
-            Scan counts come from your own QR codes, which expire every 15
-            minutes — a scan is counted when someone opens one, whether or not it
-            became a new connection. We don&apos;t track who saved your card:
-            that&apos;s private to them.
-          </p>
+            </div>
+          </Columns>
         </>
       )}
     </Page>
@@ -223,15 +240,18 @@ function Action({
   // leaving the reader unsure whether it was ever there.
   if (count === 0) {
     return (
-      <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-lime p-3 shadow-brutal">
+      <li className="rounded-brutal border-2 border-ink bg-lime p-3 shadow-brutal">
         <span className="text-sm font-semibold">{empty}</span>
       </li>
     );
   }
 
+  // Wraps rather than squeezing: these rows live in a 19rem rail on desktop and
+  // full width on a phone, and the sentence must not be truncated to keep the
+  // button on the same line.
   return (
-    <li className="flex items-center gap-3 rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal">
-      <span className="min-w-0 flex-1 text-sm font-medium">
+    <li className="flex flex-wrap items-center gap-2 rounded-brutal border-2 border-ink bg-paper p-3 shadow-brutal">
+      <span className="min-w-40 flex-1 text-sm font-medium">
         <span className="font-semibold">{count}</span>{" "}
         {count === 1 ? singular : plural}
       </span>

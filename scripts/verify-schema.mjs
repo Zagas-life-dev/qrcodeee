@@ -202,9 +202,30 @@ try {
            where d.objid = p.oid and d.deptype = 'e'  -- skip extension-owned
         )`,
   );
-  const anonCallable = publicFns.filter((f) => f.anon_exec);
-  check("no function in public is executable by anon", anonCallable.length === 0,
+  // Functions that are anon-callable ON PURPOSE. An allowlist rather than a
+  // relaxed assertion: every entry has to be typed out by whoever added it, and
+  // anything NOT listed still fails, so the Supabase default privilege can never
+  // quietly grant anon a new endpoint again.
+  //
+  //   resolve_handle(text) — the public profile page's only read (site-spec S3).
+  //     /u/{handle} is reachable logged-out by design. Returns the three fields
+  //     the "profiles are publicly readable" policy already serves to anon, for
+  //     one handle at a time, and cannot be used to enumerate.
+  const ANON_CALLABLE_BY_DESIGN = ["resolve_handle(text)"];
+
+  const anonCallable = publicFns.filter(
+    (f) => f.anon_exec && !ANON_CALLABLE_BY_DESIGN.includes(f.sig),
+  );
+  check("no unexpected function in public is executable by anon", anonCallable.length === 0,
     anonCallable.map((f) => f.sig).join(", "));
+
+  // The allowlist is only trustworthy if it describes reality — an entry left
+  // behind after its function was dropped or re-revoked would silently widen it.
+  const staleAllowlist = ANON_CALLABLE_BY_DESIGN.filter(
+    (sig) => !publicFns.some((f) => f.sig === sig && f.anon_exec),
+  );
+  check("every ANON_CALLABLE_BY_DESIGN entry is still a real anon-callable function",
+    staleAllowlist.length === 0, staleAllowlist.join(", "));
 
   // Trigger functions must not be reachable by any client role either.
   const TRIGGER_FNS = [

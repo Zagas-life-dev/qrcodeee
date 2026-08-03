@@ -10,8 +10,12 @@ import { shouldRun } from "@/lib/notifications/schedule";
  * batch — an unbounded delete on the highest-write table in the system is a
  * long-running lock-holding transaction, which is the shape §5.4 batches
  * everything else to avoid.
+ *
+ * Runs on the Node runtime — it uses the service-role key. That used to be
+ * pinned with `export const runtime = "nodejs"`, which `cacheComponents` does
+ * not permit; nodejs is the default, so the behaviour is unchanged, but nothing
+ * may reintroduce an edge runtime for this route.
  */
-export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const MAX_ROUNDS = 20;

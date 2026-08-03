@@ -29,7 +29,7 @@ export function SkeletonPage({
       // that anything is happening between the tap and the content.
       role="status"
       aria-label="Loading"
-      className={`mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-12 ${width}`}
+      className={`mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 lg:px-8 ${width}`}
     >
       {children}
     </main>

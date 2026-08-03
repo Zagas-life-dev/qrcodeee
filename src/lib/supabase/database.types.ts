@@ -84,6 +84,48 @@ export type ScannedProfile = {
   custom_fields: { label: string; value: string | null }[];
 };
 
+/** §S4. `bento` uses the Cell tree; the other three order blocks by sort_order. */
+export type SectionLayout = "bento" | "row-scroll" | "stack-scroll" | "single";
+
+/** §S5. `private` is a draft state — visible to the owner in the editor only. */
+export type BlockVisibility = "public" | "connections" | "private";
+
+/** The publicly-readable half of a profile — what /u/{handle} renders to anyone. */
+export type PublicProfile = {
+  id: string;
+  name: string;
+  photo_url: string | null;
+  bio: string | null;
+};
+
+/**
+ * What `resolve_handle` returns (site-spec S3).
+ *
+ * `moved` carries the CURRENT handle rather than the profile, so a parked handle
+ * redirects instead of quietly continuing to serve the content under its old
+ * address — otherwise the old URL never falls out of circulation.
+ *
+ * Deliberately viewer-independent: this is the read that gets cached and shared
+ * across every visitor to a handle, so blocking is applied by the route, per
+ * viewer, outside the cached region.
+ */
+export type HandleResolution =
+  | { status: "found"; profile: PublicProfile }
+  /** §8: the row survives so connection history resolves, but it was scrubbed. */
+  | { status: "deleted" }
+  | { status: "moved"; handle: string }
+  | { status: "not_found" };
+
+/** What `set_handle` returns. `reserved` is kept distinct from `taken` on purpose. */
+export type SetHandleResult =
+  | { status: "ok"; handle: string }
+  | { status: "taken" }
+  | { status: "reserved" }
+  | { status: "invalid" }
+  | { status: "rate_limited" }
+  | { status: "unauthenticated" }
+  | { status: "not_found" };
+
 /**
  * Structured status rather than succeed/fail, so the UI can respond precisely
  * instead of showing one generic error toast (§5.1).
@@ -118,23 +160,169 @@ export type Database = {
         Row: {
           id: string;
           name: string;
+          handle: string;
           photo_url: string | null;
           bio: string | null;
           qr_style: Json;
           profile_version: number;
+          /** S13. Shaped now, enforced by nothing — limits live in tier_limits. */
+          tier: string;
+          /** S13. Per-user exception to the tier's limits: comps, grandfathering. */
+          limit_overrides: Json | null;
           deleted_at: string | null;
           created_at: string;
           updated_at: string;
         };
         // No insert policy on profiles — rows come from handle_new_user().
         Insert: never;
-        // Column grants (§4) allow exactly these four.
+        // Column grants (§4) allow exactly these four. `handle` is absent on
+        // purpose: it is writable only through set_handle(), which is where the
+        // reservation list, the parking of the old handle and the rate limit
+        // live. Adding it here would not grant it — the DB grant is the real
+        // enforcement — but it would make the type system lie about it.
         Update: {
           name?: string;
           photo_url?: string | null;
           bio?: string | null;
           qr_style?: Json;
         };
+        Relationships: [];
+      };
+      /**
+       * S8. One row per profile, created at signup. `published` gates the custom
+       * sections only — /u/{handle} renders the contact card either way, so
+       * blocks are strictly additive to a page that already works.
+       */
+      sites: {
+        Row: {
+          profile_id: string;
+          published: boolean;
+          template_id: string | null;
+          theme: Json;
+          seo: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        // Created by handle_new_user(), like profiles and contact_details.
+        Insert: never;
+        Update: {
+          published?: boolean;
+          template_id?: string | null;
+          theme?: Json;
+          seo?: Json;
+        };
+        Relationships: [];
+      };
+      site_sections: {
+        Row: {
+          id: string;
+          site_id: string;
+          layout_type: SectionLayout;
+          /** The Cell tree (S4), or null for the non-bento layouts. Validate with parseCell. */
+          root_cell: Json | null;
+          sort_order: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          site_id: string;
+          layout_type?: SectionLayout;
+          root_cell?: Json | null;
+          sort_order?: number;
+        };
+        Update: {
+          layout_type?: SectionLayout;
+          root_cell?: Json | null;
+          sort_order?: number;
+        };
+        Relationships: [];
+      };
+      site_blocks: {
+        Row: {
+          id: string;
+          section_id: string;
+          /** Text, not an enum, so an unknown type degrades to nothing on rollback. */
+          type: string;
+          content: Json;
+          /** Alignment, tone and text scale. See lib/site/block-style.ts. */
+          style: Json;
+          sort_order: number;
+          visibility: BlockVisibility;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          section_id: string;
+          type: string;
+          content?: Json;
+          style?: Json;
+          sort_order?: number;
+          visibility?: BlockVisibility;
+        };
+        Update: {
+          type?: string;
+          content?: Json;
+          style?: Json;
+          sort_order?: number;
+          visibility?: BlockVisibility;
+        };
+        Relationships: [];
+      };
+      site_media: {
+        Row: {
+          id: string;
+          profile_id: string;
+          public_id: string;
+          /** Cloudinary asset version — required to build a delivery URL. */
+          version: number;
+          width: number | null;
+          height: number | null;
+          bytes: number | null;
+          created_at: string;
+        };
+        Insert: {
+          profile_id: string;
+          public_id: string;
+          version?: number;
+          width?: number | null;
+          height?: number | null;
+          bytes?: number | null;
+        };
+        Update: never;
+        Relationships: [];
+      };
+      /** RLS on, zero policies — shaped for S13, read by nothing yet. */
+      tier_limits: {
+        Row: {
+          tier: string;
+          max_sections: number | null;
+          max_blocks: number | null;
+          media_allowed: boolean;
+          email_list_allowed: boolean;
+          analytics_level: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      /** RLS on, zero policies — consulted only by SECURITY DEFINER paths. */
+      reserved_handles: {
+        Row: { handle: string };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      /**
+       * RLS on, zero policies. Readable only through resolve_handle(), which
+       * answers about one handle at a time — a `using (true)` policy would let
+       * PostgREST serve a complete list of who used to be called what.
+       */
+      handle_history: {
+        Row: { handle: string; profile_id: string; released_at: string };
+        Insert: never;
+        Update: never;
         Relationships: [];
       };
       contact_details: {
@@ -343,6 +531,25 @@ export type Database = {
       rotate_qr_token: {
         Args: Record<string, never>;
         Returns: MintedQrToken;
+      };
+      /**
+       * SECURITY DEFINER (S3). Callable by `anon` — this is the public profile
+       * page's only read. Viewer-independent by design so its result can be
+       * cached and shared; see HandleResolution.
+       */
+      resolve_handle: {
+        Args: { p_handle: string };
+        Returns: HandleResolution;
+      };
+      /**
+       * SECURITY DEFINER (S3). Validates, checks the reserved list, parks the
+       * outgoing handle in handle_history, and rate-limits to 2 changes per 90
+       * days. Returns a structured status — a taken handle is an ordinary form
+       * outcome, not an exception.
+       */
+      set_handle: {
+        Args: { p_handle: string };
+        Returns: SetHandleResult;
       };
       /**
        * SECURITY DEFINER (§9). Reads qr_tokens, which is deny-all to clients, so

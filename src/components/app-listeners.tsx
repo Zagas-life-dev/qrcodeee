@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/session";
 
 import { ConnectionListener } from "./connection-listener";
 
@@ -9,12 +9,14 @@ import { ConnectionListener } from "./connection-listener";
  * rather than passed down from a page — the listener subscribes to a
  * per-recipient channel, and it should never be possible to render it pointed at
  * someone else's id.
+ *
+ * Must be rendered inside a `<Suspense>` boundary: it reads the session, and
+ * under Cache Components runtime data outside a boundary blocks the whole route
+ * from prerendering. This sits in the root layout, so unboundaried it blocks
+ * every page in the app — see the boundary in layout.tsx.
  */
 export async function AppListeners() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getSessionUser();
   if (!user) return null;
 
   return <ConnectionListener userId={user.id} />;
