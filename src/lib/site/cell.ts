@@ -315,6 +315,36 @@ export function pruneCell(cell: Cell, available: ReadonlySet<string>): Cell | nu
   return { ...cell, children: [left, right] };
 }
 
+/**
+ * Exchange two blocks' positions, leaving the tree's SHAPE untouched.
+ *
+ * This is what moving a block means inside a bento. The panes ARE the layout, so
+ * a block moves by trading places with another one rather than by being lifted
+ * out and reinserted — remove-then-insert would collapse the split it left,
+ * choose a new home by `insertBlock`'s own rule, and rearrange blocks nobody
+ * asked to move. Trading places changes exactly the two things the owner pointed
+ * at.
+ *
+ * Total, and valid whenever the input was: only `block_id`s change, so the
+ * depth, the leaf count and the leaf SET all survive. A tree that passed
+ * `validateCellTree` still passes it afterwards, whatever ids are handed in —
+ * including ids that appear nowhere, which return the tree unchanged.
+ */
+export function swapLeaves(root: Cell, a: string, b: string): Cell {
+  if (a === b) return root;
+
+  const walk = (cell: Cell): Cell => {
+    if (cell.type === "component") {
+      if (cell.block_id === a) return { type: "component", block_id: b };
+      if (cell.block_id === b) return { type: "component", block_id: a };
+      return cell;
+    }
+    return { ...cell, children: [walk(cell.children[0]), walk(cell.children[1])] };
+  };
+
+  return walk(root);
+}
+
 /** Set the ratio of the split at `path`. Out-of-range paths return the tree unchanged. */
 export function setRatioAt(root: Cell, path: CellPath, ratio: number): Cell {
   if (path.length === 0) {

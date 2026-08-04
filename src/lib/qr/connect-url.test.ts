@@ -5,13 +5,29 @@ import { parseConnectToken } from "./connect-url";
 const TOKEN = "9f8c1b2a-1111-4444-8888-aaaabbbbcccc";
 
 describe("parseConnectToken", () => {
-  it("reads the token from a normal connect URL", () => {
+  it("reads the token from the current payload, /u/{handle}?c=", () => {
+    expect(parseConnectToken(`https://qr.example/u/ada?c=${TOKEN}`)).toBe(TOKEN);
+  });
+
+  /**
+   * Codes minted before the payload changed are printed on things we don't
+   * control. They stay valid for as long as their token does, so the parser
+   * keeps reading them — a deploy must not silently break every code in a
+   * wallet.
+   */
+  it("still reads the pre-change payload, /connect/{token}", () => {
     expect(parseConnectToken(`https://qr.example/connect/${TOKEN}`)).toBe(TOKEN);
+  });
+
+  it("ignores the handle in the URL — the token decides who you connect to", () => {
+    // A hand-crafted code naming someone else must not change the outcome.
+    // The handle is there so a plain camera app shows something recognisable.
+    expect(parseConnectToken(`https://qr.example/u/someone-else?c=${TOKEN}`)).toBe(TOKEN);
   });
 
   it("accepts other origins — printed codes get scanned by localhost and previews", () => {
     expect(parseConnectToken(`http://localhost:3000/connect/${TOKEN}`)).toBe(TOKEN);
-    expect(parseConnectToken(`https://preview-abc.vercel.app/connect/${TOKEN}`)).toBe(TOKEN);
+    expect(parseConnectToken(`https://preview-abc.vercel.app/u/ada?c=${TOKEN}`)).toBe(TOKEN);
   });
 
   it("accepts a bare token", () => {
@@ -37,6 +53,12 @@ describe("parseConnectToken", () => {
       ["trailing segment", `https://qr.example/connect/${TOKEN}/extra`],
       ["missing token", "https://qr.example/connect/"],
       ["non-uuid token", "https://qr.example/connect/not-a-uuid"],
+      // A public page with no code on it is a link, not a scan. Reading it as
+      // one would turn every shared profile URL into a connection.
+      ["a bare public page", "https://qr.example/u/ada"],
+      ["public page, empty code", "https://qr.example/u/ada?c="],
+      ["public page, non-uuid code", "https://qr.example/u/ada?c=not-a-uuid"],
+      ["public page, no handle", `https://qr.example/u?c=${TOKEN}`],
       ["sql-ish payload", "https://qr.example/connect/' or 1=1--"],
       ["javascript scheme", `javascript:alert(1)`],
       ["data scheme", "data:text/html,<script>alert(1)</script>"],
@@ -52,6 +74,7 @@ describe("parseConnectToken", () => {
       `https://evil.example/connect/${TOKEN}`,
       TOKEN,
       `https://qr.example/connect/${TOKEN}?x=1`,
+      `https://qr.example/u/ada?c=${TOKEN}&x=1`,
     ];
     for (const input of inputs) {
       const result = parseConnectToken(input);

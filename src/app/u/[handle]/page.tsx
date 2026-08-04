@@ -7,14 +7,29 @@ import { getSessionUser } from "@/lib/supabase/session";
 import { createClient } from "@/lib/supabase/server";
 import { normalizeHandle, resolveHandle } from "@/lib/handles/resolve";
 import { getGatedBlocks, getPublicSite } from "@/lib/site/read";
+import { isFreshEncounter } from "@/lib/contacts/encounter";
+import { scanExplanation } from "@/lib/contacts/scan-explain";
 import { siteUrl } from "@/lib/site";
-import type { PublicProfile, ScannedProfile } from "@/lib/supabase/database.types";
-import { ConnectedProfileCard } from "@/components/connected-profile-card";
+import type { PublicProfile } from "@/lib/supabase/database.types";
+import { AutoSaveContact } from "@/components/auto-save-contact";
+import { ConnectionActions } from "@/components/connection-actions";
+import { ContactDetails } from "@/components/site/contact-details";
 import { SiteRender } from "@/components/site/site-render";
 import { SkeletonCard } from "@/components/skeleton";
-import { ActionLink, Notice, Page, PageHeader } from "@/components/page";
+import { ActionLink, Notice, Page, PageHeader, Section } from "@/components/page";
 
-type Params = { params: Promise<{ handle: string }> };
+type Params = {
+  params: Promise<{ handle: string }>;
+  /**
+   * `?e=` explains a scan that didn't connect (see the redemption route). It is
+   * display-only and grants nothing — the page renders the same for everyone
+   * whatever it says, so a forged one is a sentence someone typed to themselves.
+   *
+   * `?c=` never reaches here: `src/proxy.ts` rewrites a URL carrying one to the
+   * redemption route, which redirects back without it.
+   */
+  searchParams: Promise<{ e?: string }>;
+};
 
 /**
  * The permanent public profile (site-spec S3) — the page a handle points at, and
@@ -86,9 +101,10 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   };
 }
 
-export default async function PublicProfilePage({ params }: Params) {
+export default async function PublicProfilePage({ params, searchParams }: Params) {
   const raw = (await params).handle;
   const handle = normalizeHandle(raw);
+  const explain = scanExplanation((await searchParams).e);
 
   // Canonicalise first, so `/u/Ada` and `/u/ada` are not two pages with the same
   // content and the cache has one key per profile rather than one per
@@ -123,6 +139,16 @@ export default async function PublicProfilePage({ params }: Params) {
     // ever see. The contact card is capped separately below so it doesn't
     // stretch into a letterbox to pay for it.
     <Page width="lg">
+      {/* Outside the boundary: it explains a scan that has already failed, and
+          holding it behind the viewer-scoped read would show it after the page
+          it is apologising for. App-styled, like every other affordance in the
+          unthemed half — this is us talking, not the page's owner. */}
+      {explain ? (
+        <Notice tone="warn" role="status" className="mb-6 max-w-md">
+          {explain}
+        </Notice>
+      ) : null}
+
       <Suspense fallback={<ProfileSkeleton />}>
         <ViewerScopedProfile handle={handle} profile={resolution.profile} />
       </Suspense>
@@ -185,10 +211,14 @@ async function ViewerScopedProfile({
   const isOwner = user?.id === profile.id;
 
   // The site's two halves (S8). `getPublicSite` is the cached, viewer-
-  // independent read and returns null for an unpublished site; `getGatedBlocks`
-  // is per-viewer and returns [] for anyone RLS says isn't connected. They are
-  // merged in the renderer, so nothing downstream branches on which is which.
-  // Skipped entirely for a signed-out visitor, who can never be a connection.
+  // independent read; `getGatedBlocks` is per-viewer and returns [] for anyone
+  // RLS says isn't connected. They are merged in the renderer, so nothing
+  // downstream branches on which is which. Skipped entirely for a signed-out
+  // visitor, who can never be a connection.
+  //
+  // An UNPUBLISHED site is no longer null here — it comes back holding just its
+  // pinned identity section, which is what keeps this page identifiable before
+  // anyone has built anything on it.
   const [site, gatedBlocks] = await Promise.all([
     getPublicSite(profile.id),
     user ? getGatedBlocks(profile.id) : Promise.resolve([]),
@@ -209,39 +239,40 @@ async function ViewerScopedProfile({
       .select("label, value")
       .eq("profile_id", profile.id)
       .order("sort_order"),
+    /**
+     * The connection is the authorisation AND the encounter clock.
+     *
+     * `connected_at` is what decides whether the contact sheet may open by
+     * itself — see lib/contacts/encounter.ts. It is read here, from a row RLS
+     * scopes to the two parties, precisely so that nothing in the URL has to
+     * carry that decision. `connection_epoch` distinguishes a genuine
+     * reconnection from the same one.
+     */
     user && !isOwner
       ? supabase
           .from("connections")
-          .select("id")
+          .select("id, connected_at, connection_epoch")
           .or(`user_a.eq.${profile.id},user_b.eq.${profile.id}`)
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
-  const scanned: ScannedProfile = {
-    id: profile.id,
-    name: profile.name,
-    photo_url: profile.photo_url,
-    bio: profile.bio,
-    phone: contact?.phone ?? null,
-    email: contact?.email ?? null,
-    custom_fields: fields ?? [],
-  };
-
   return (
     <>
-      <PageHeader title={profile.name} size="sm" />
+      {/* The visible name is the identity block's, inside the themed page. This
+          is here so the document still has exactly one h1 and a screen reader
+          still gets the page's name before its contents — a block's heading is
+          an h2, and promoting it would mean the same component emitting a
+          different level in the editor than on the page. */}
+      <h1 className="sr-only">{profile.name}</h1>
 
-      {/* The card keeps its own reading width whatever the page does — it is a
-          business card, and a business card 42rem wide is a banner. */}
-      <div className="mt-6 max-w-md">
-        <ConnectedProfileCard profile={scanned} hero />
-      </div>
-
-      {/* The custom page, below the contact card. Renders nothing at all when
-          the site is unpublished or empty, which is why the handle page is
-          useful from the moment it exists — blocks are additive to a page that
-          already works, never a precondition for it. */}
+      {/* THE PAGE ITSELF, INCLUDING WHO IT BELONGS TO. There is no app-drawn
+          contact card in front of this any more: the identity is the permanent
+          first section of the owner's own site, and the details panel is slotted
+          in behind it. An unpublished site still renders — its pinned section is
+          exempt from the publication check in RLS — so a handle is useful from
+          the moment it exists, which is the guarantee the old hardcoded card was
+          carrying. */}
       {site ? (
         <SiteRender
           site={site}
@@ -253,18 +284,80 @@ async function ViewerScopedProfile({
             bio: profile.bio,
             handle,
           }}
-        />
-      ) : null}
+          contact={
+            <>
+              <ContactDetails
+                phone={contact?.phone ?? null}
+                email={contact?.email ?? null}
+                fields={fields ?? []}
+                // Only the owner is shown the gaps in their own profile. A
+                // visitor gets what exists; a stranger's RLS-emptied read
+                // therefore renders nothing at all rather than a list of
+                // "Not provided", which advertised how much was being withheld.
+                showGaps={isOwner}
+              />
 
-      {/* Capped with the card, for the same reason: these are one panel of
-          copy and a button, not a band across the page. */}
+              {/* THE SAVE SITS WITH THE DETAILS, not at the foot of the page.
+                  It is the action on the thing directly above it, and the
+                  person reading this scanned a code ten seconds ago — putting
+                  it below five sections of someone's page puts the whole
+                  product behind a scroll.
+
+                  App-styled inside a themed page, deliberately: this is the one
+                  surface that says "this is Skan QR and this is what tapping
+                  does", and it is not customer-configurable. See the boundary
+                  note in globals.css. */}
+              {connection ? (
+                // `text-ink` because this block sits INSIDE the themed page and
+                // would otherwise inherit `--sk-ink` — which on the glass skin
+                // is near-white, i.e. white text on a lime button. The whole
+                // point of this surface is that it looks like ours under every
+                // skin, so it cannot inherit the skin's foreground.
+                <div className="max-w-md text-ink">
+                  <AutoSaveContact
+                    profileId={profile.id}
+                    name={profile.name}
+                    epoch={connection.connection_epoch}
+                    // Server-side, from a row only these two can read. Nothing
+                    // in the URL can make this true.
+                    fresh={isFreshEncounter(connection.connected_at)}
+                  />
+                </div>
+              ) : null}
+            </>
+          }
+        />
+      ) : (
+        /* No site row to render — the profile exists but its site is
+           unreachable. Rare (a failed signup trigger), and the name is the one
+           thing worth showing rather than a blank page. */
+        <PageHeader title={profile.name} size="sm" />
+      )}
+
+      {/* Capped at reading width while the sections above run full: this is one
+          panel of copy and a button, not a band across the page.
+
+          IT IS ALSO THE UNTHEMED HALF. Everything above takes the owner's skin;
+          the save/connect affordances keep app styling under every one of them,
+          because that is the surface saying "this is Skan QR and this is what
+          tapping does" — see the boundary note in globals.css. */}
       <div className="mt-8 max-w-md">
         {isOwner ? (
           <OwnerActions handle={handle} />
         ) : connection ? (
-          <ActionLink href={`/connections/${profile.id}`} tone="primary" size="lg">
-            Open in your connections
-          </ActionLink>
+          /* Disconnect, block and report. They lived on a per-connection detail
+             page, which is gone: this page is the one page a person has in this
+             product, so managing your connection to someone belongs on it. Last
+             on the page and behind a menu — these are the things you reach for
+             rarely and never by accident. */
+          <Section title="Manage">
+            <ConnectionActions
+              connectionId={connection.id}
+              profileId={profile.id}
+              name={profile.name}
+              layout="inline"
+            />
+          </Section>
         ) : user ? (
           <StrangerActions name={profile.name} />
         ) : (
@@ -275,15 +368,19 @@ async function ViewerScopedProfile({
   );
 }
 
-/** Mirrors the resolved layout's geometry so nothing jumps when it swaps in. */
+/**
+ * Mirrors the resolved layout's geometry so nothing jumps when it swaps in:
+ * identity, details, then the actions. No title bar — the page's h1 is
+ * `sr-only` now that the identity block carries the visible name.
+ */
 function ProfileSkeleton() {
   return (
-    <div role="status" aria-label="Loading" className="max-w-md">
-      <div className="h-8 w-44 animate-pulse rounded-brutal border-2 border-ink bg-paper" />
+    <div role="status" aria-label="Loading">
+      <SkeletonCard className="h-64" />
       <div className="mt-6">
-        <SkeletonCard className="h-72" />
+        <SkeletonCard className="h-40" />
       </div>
-      <div className="mt-8">
+      <div className="mt-8 max-w-md">
         <SkeletonCard className="h-32" />
       </div>
     </div>

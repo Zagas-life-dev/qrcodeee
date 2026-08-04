@@ -5,11 +5,14 @@ import { AnimatePresence, motion } from "motion/react";
 
 import { BLOCK_CATALOGUE, parseBlockContent } from "@/lib/site/blocks";
 import { clampRatio, parseCell, type Cell, type CellPath } from "@/lib/site/cell";
+import { renderOrder } from "@/lib/site/mutations";
 import { useSiteStore } from "@/lib/site/store";
+import { onAccent, parseTheme } from "@/lib/site/theme";
 import type { OwnerSection } from "@/lib/site/owner";
 import type { SiteBlock, SiteOwner } from "@/lib/site/read";
 import type { SectionLayout } from "@/lib/supabase/database.types";
 import { BlockRender } from "@/components/site/block-render";
+import { ContactDetails } from "@/components/site/contact-details";
 import { useReducedMotion } from "@/components/site/blocks/use-reduced-motion";
 
 import { OnboardingStepper } from "./onboarding-stepper";
@@ -63,13 +66,28 @@ export function SiteEditor({
   handle,
   publicUrl,
   owner,
+  contact,
 }: {
   handle: string;
   publicUrl: string;
   owner: SiteOwner;
+  /**
+   * The owner's own contact details, for the preview panel on the canvas.
+   *
+   * They are not editable here — /profile owns them — but they ARE part of the
+   * page now (see contact-details.tsx), sitting between the identity and
+   * everything below it. Leaving them out would mean the editor showed a page
+   * with a hole in the middle of it.
+   */
+  contact: {
+    phone: string | null;
+    email: string | null;
+    fields: { label: string; value: string | null }[];
+  };
 }) {
   const { site } = useSiteStore();
   const still = useReducedMotion();
+  const theme = parseTheme(site.theme);
 
   /** The block whose CONTENT sheet is open. */
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -82,13 +100,19 @@ export function SiteEditor({
   /**
    * Whether to show the wizard, decided ONCE on mount.
    *
-   * It cannot be `site.sections.length === 0`, which is what it was. The first
+   * It cannot be a live `sections.length === 0`, which is what it was. The first
    * thing the wizard does is add a section — so the moment step one succeeded,
    * the condition it was mounted under went false and it unmounted itself,
    * taking steps two and three with it. That was survivable when a round trip
    * hid it; with an optimistic draft it happens in the same frame as the tap.
+   *
+   * It counts ORDINARY sections, not all of them. Every site now ships with the
+   * pinned identity section, so `sections.length === 0` became a condition that
+   * is never true and the wizard would have stopped appearing entirely.
    */
-  const [onboarding, setOnboarding] = useState(() => site.sections.length === 0);
+  const [onboarding, setOnboarding] = useState(
+    () => site.sections.filter((section) => !section.pinned).length === 0,
+  );
 
   // Resolved from the draft rather than held as a snapshot: the panel has to
   // show edits made to the same block while it is open, and a captured object
@@ -96,6 +120,22 @@ export function SiteEditor({
   const blocks = site.sections.flatMap((section) => section.blocks);
   const editing = editingId ? (blocks.find((b) => b.id === editingId) ?? null) : null;
   const selected = selectedId ? (blocks.find((b) => b.id === selectedId) ?? null) : null;
+
+  /**
+   * The permanent identity section, and everything else.
+   *
+   * Split here rather than in the map, because the two get different chrome and
+   * because the ordinary sections have to be numbered and moved among
+   * THEMSELVES — "Section 1" is the first one the owner made, not the identity,
+   * and its move-up button must be disabled rather than offering a swap the
+   * server will refuse (see mutations.ts).
+   *
+   * `moveSection` still takes the index in the FULL list, since that is what the
+   * server compares against; `pinnedOffset` converts between the two.
+   */
+  const pinned = site.sections.find((section) => section.pinned) ?? null;
+  const ordinary = site.sections.filter((section) => !section.pinned);
+  const pinnedOffset = pinned ? 1 : 0;
 
   // A block deleted from under the selection (or by another tab) leaves the
   // panel pointed at nothing. Falling back to the Add tab is what stops the
@@ -132,14 +172,61 @@ export function SiteEditor({
         {/* THE CANVAS. Centred in whatever room is left rather than left-aligned:
             the thing being edited is a page, and a page has margins. */}
         <div className="min-w-0">
-          <div className="mx-auto w-full max-w-xl space-y-5">
+          {/* THE PAGE, IN THE OWNER'S OWN SKIN. The canvas carries the same
+              `site-theme` attributes the public page does, so `sk-surface`,
+              `sk-muted` and the rest resolve to the theme being edited rather
+              than to nothing — which is what they did before, leaving every
+              block on this screen drawn as an unstyled box. `site-theme-swatch`
+              paints the page colour INSIDE this frame; the public page's
+              `site-theme-page` paints it across the whole viewport, which here
+              would repaint the app. */}
+          <div
+            className="site-theme site-theme-swatch mx-auto w-full max-w-xl space-y-5 rounded-brutal border-2 border-ink p-3 shadow-brutal sm:p-4"
+            data-skin={theme.skin}
+            data-font={theme.font}
+            data-radius={theme.radius}
+            data-density={theme.density}
+            style={
+              theme.accent
+                ? ({
+                    "--sk-accent": theme.accent,
+                    "--sk-on-accent": onAccent(theme.accent),
+                  } as React.CSSProperties)
+                : undefined
+            }
+          >
             {onboarding ? <OnboardingStepper onDone={() => setOnboarding(false)} /> : null}
 
-            {site.sections.length === 0 && !onboarding ? (
-              <div className="rounded-brutal border-2 border-dashed border-ink px-4 py-10 text-center">
+            {/* The identity, first and permanent. It is a real block in a real
+                section — the app-drawn contact card that used to sit above
+                everything on /u/{handle} is gone — so it is edited here like
+                anything else, minus the controls that would remove it. */}
+            {pinned ? (
+              <PinnedSectionEditor
+                owner={owner}
+                section={pinned}
+                selectedId={selectedId}
+                onSelect={select}
+                onEditContent={setEditingId}
+              />
+            ) : null}
+
+            {/* Not editable from here — /profile owns these — but shown because
+                this is where a visitor meets them. */}
+            <CanvasNote label="Contact details · your connections only">
+              <ContactDetails
+                phone={contact.phone}
+                email={contact.email}
+                fields={contact.fields}
+                showGaps
+              />
+            </CanvasNote>
+
+            {ordinary.length === 0 && !onboarding ? (
+              <div className="rounded-brutal border-2 border-dashed border-ink/50 bg-paper/80 px-4 py-8 text-center text-ink">
                 <p className="text-sm font-semibold text-balance">
-                  Nothing on your page yet. Your contact card still shows at your
-                  link — sections go underneath it.
+                  Nothing else on your page yet. Your profile and details above
+                  are already live — sections go underneath them.
                 </p>
                 <button
                   type="button"
@@ -152,7 +239,7 @@ export function SiteEditor({
             ) : null}
 
             <AnimatePresence initial={false}>
-              {site.sections.map((section, index) => (
+              {ordinary.map((section, index) => (
                 <motion.div
                   key={section.id}
                   layout={still ? false : "position"}
@@ -167,8 +254,10 @@ export function SiteEditor({
                   <SectionEditor
                     owner={owner}
                     section={section}
-                    index={index}
-                    count={site.sections.length}
+                    number={index + 1}
+                    moveIndex={index + pinnedOffset}
+                    canMoveUp={index > 0}
+                    canMoveDown={index < ordinary.length - 1}
                     selectedId={selectedId}
                     onSelect={select}
                     onEditContent={setEditingId}
@@ -181,11 +270,11 @@ export function SiteEditor({
               ))}
             </AnimatePresence>
 
-            {site.sections.length > 0 ? (
+            {ordinary.length > 0 ? (
               <button
                 type="button"
                 onClick={() => openPanel("add")}
-                className="w-full rounded-brutal border-2 border-dashed border-ink/50 py-4 text-sm font-semibold nb-press-sm"
+                className="w-full rounded-brutal border-2 border-dashed border-ink/50 bg-paper/80 py-4 text-sm font-semibold text-ink nb-press-sm"
               >
                 ＋ Add a section
               </button>
@@ -299,10 +388,81 @@ function PanelSheet({
   );
 }
 
+/**
+ * A framed, labelled thing on the canvas that is NOT a section — the contact
+ * details preview, and anything else the page shows but this screen doesn't own.
+ *
+ * The label is a paper pill rather than plain text because the canvas is now
+ * painted in the owner's skin, and half of those skins are dark. Editor chrome
+ * has to carry its own background or it disappears on `glass` and `maximal`.
+ */
+function CanvasNote({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-brutal border-2 border-dashed border-ink/50 p-2">
+      <p className="mb-2 inline-block rounded-full border-2 border-ink bg-paper px-2 py-0.5 font-display text-[0.65rem] tracking-wide text-ink uppercase">
+        {label}
+      </p>
+      {/* Inert: these values are edited on /profile, and a preview you can
+          almost-but-not-quite type into is worse than one you plainly can't. */}
+      <div className="pointer-events-none">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * The permanent identity section.
+ *
+ * Same block chrome as anywhere else, and deliberately none of the section
+ * chrome: no layout picker (it holds one block), no move buttons (it is always
+ * first), no delete (that is the whole point). What is left is a label saying so
+ * and the block itself, which is fully editable — tagline, alignment, tone,
+ * size. See the permanent identity migration for why the rules are in RLS rather
+ * than only in this component.
+ */
+function PinnedSectionEditor({
+  section,
+  owner,
+  selectedId,
+  onSelect,
+  onEditContent,
+}: {
+  section: OwnerSection;
+  owner: SiteOwner;
+  selectedId: string | null;
+  onSelect: (blockId: string) => void;
+  onEditContent: (blockId: string) => void;
+}) {
+  return (
+    <section className="rounded-brutal border-2 border-dashed border-ink/50 p-2">
+      <p className="mb-2 inline-block rounded-full border-2 border-ink bg-lilac px-2 py-0.5 font-display text-[0.65rem] tracking-wide text-ink uppercase">
+        Your profile · always first
+      </p>
+      <div className="space-y-3">
+        {section.blocks.map((block) => (
+          <BlockChrome
+            key={block.id}
+            owner={owner}
+            block={block}
+            // One block, so there is nothing to trade places with and no move
+            // buttons are drawn. The identity section holds exactly one block
+            // and always will, which is why this needs no rule of its own.
+            order={section.blocks.map((entry) => entry.id)}
+            selected={block.id === selectedId}
+            onSelect={onSelect}
+            onEditContent={onEditContent}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function SectionEditor({
   section,
-  index,
-  count,
+  number,
+  moveIndex,
+  canMoveUp,
+  canMoveDown,
   selectedId,
   onSelect,
   onEditContent,
@@ -310,8 +470,15 @@ function SectionEditor({
   owner,
 }: {
   section: OwnerSection;
-  index: number;
-  count: number;
+  /** Position among the ORDINARY sections — what the inspector's chips show. */
+  number: number;
+  /**
+   * Position in the full list including the pinned identity, which is what
+   * `moveSection` compares against on the server (see actions.ts).
+   */
+  moveIndex: number;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
   owner: SiteOwner;
   selectedId: string | null;
   onSelect: (blockId: string) => void;
@@ -324,14 +491,29 @@ function SectionEditor({
   const byId = new Map(section.blocks.map((block) => [block.id, block]));
   const tree = section.root_cell ? parseCell(section.root_cell) : null;
 
+  /**
+   * The order this section reads in, which is what its move buttons step
+   * through. The shared rule rather than a local one: a bento's arrangement is
+   * its tree and every other layout's is `sort_order`, and the server compares
+   * the index a button sends against the same function.
+   */
+  const order = renderOrder(
+    section.layout_type,
+    tree,
+    section.blocks.map((block) => block.id),
+  );
+
   return (
-    <section className="rounded-brutal border-2 border-ink bg-canvas p-3 shadow-brutal">
+    // Dashed outline, no fill: the canvas behind this is the page in the
+    // owner's own skin now, and a solid editor-coloured panel would hide the
+    // thing the canvas exists to show.
+    <section className="rounded-brutal border-2 border-dashed border-ink/50 p-2">
       {/* The section's identity first, its controls second. "Section 2" is what
           the inspector's target chips refer to, so the number has to be visible
           somewhere. */}
       <header className="flex flex-wrap items-center gap-2">
-        <span className="font-display text-xs tracking-wide uppercase">
-          Section {index + 1}
+        <span className="rounded-full border-2 border-ink bg-paper px-2 py-0.5 font-display text-[0.65rem] tracking-wide text-ink uppercase">
+          Section {number}
         </span>
 
         <select
@@ -343,8 +525,8 @@ function SectionEditor({
               layout: event.target.value as SectionLayout,
             })
           }
-          aria-label={`Layout for section ${index + 1}`}
-          className="rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-semibold shadow-brutal-sm"
+          aria-label={`Layout for section ${number}`}
+          className="rounded-full border-2 border-ink bg-paper px-3 py-1 text-xs font-semibold text-ink shadow-brutal-sm"
         >
           {LAYOUTS.map((layout) => (
             <option key={layout.value} value={layout.value}>
@@ -355,35 +537,35 @@ function SectionEditor({
 
         <div className="ml-auto flex items-center gap-1.5">
           <IconButton
-            label={`Move section ${index + 1} up`}
-            disabled={index === 0}
+            label={`Move section ${number} up`}
+            disabled={!canMoveUp}
             onClick={() =>
               mutate({
                 kind: "moveSection",
                 sectionId: section.id,
                 direction: "up",
-                fromIndex: index,
+                fromIndex: moveIndex,
               })
             }
           >
             ↑
           </IconButton>
           <IconButton
-            label={`Move section ${index + 1} down`}
-            disabled={index === count - 1}
+            label={`Move section ${number} down`}
+            disabled={!canMoveDown}
             onClick={() =>
               mutate({
                 kind: "moveSection",
                 sectionId: section.id,
                 direction: "down",
-                fromIndex: index,
+                fromIndex: moveIndex,
               })
             }
           >
             ↓
           </IconButton>
           <IconButton
-            label={`Delete section ${index + 1}`}
+            label={`Delete section ${number}`}
             onClick={() => {
               if (confirm("Delete this section and everything in it?")) {
                 mutate({ kind: "deleteSection", sectionId: section.id });
@@ -400,7 +582,7 @@ function SectionEditor({
           <button
             type="button"
             onClick={onAddBlock}
-            className="w-full rounded-brutal border-2 border-dashed border-ink/40 p-6 text-center text-sm font-semibold"
+            className="w-full rounded-brutal border-2 border-dashed border-ink/40 bg-paper/80 p-6 text-center text-sm font-semibold text-ink"
           >
             Empty — add a block
           </button>
@@ -412,6 +594,7 @@ function SectionEditor({
               path={[]}
               sectionId={section.id}
               blocks={byId}
+              order={order}
               selectedId={selectedId}
               onSelect={onSelect}
               onEditContent={onEditContent}
@@ -437,6 +620,7 @@ function SectionEditor({
                   <BlockChrome
                     owner={owner}
                     block={block}
+                    order={order}
                     selected={block.id === selectedId}
                     onSelect={onSelect}
                     onEditContent={onEditContent}
@@ -452,7 +636,7 @@ function SectionEditor({
         <button
           type="button"
           onClick={onAddBlock}
-          className="mt-3 min-h-9 w-full rounded-full border-2 border-ink bg-paper text-xs font-semibold shadow-brutal-sm nb-press-sm"
+          className="mt-3 min-h-9 w-full rounded-full border-2 border-ink bg-paper text-xs font-semibold text-ink shadow-brutal-sm nb-press-sm"
         >
           ＋ Add a block here
         </button>
@@ -466,6 +650,7 @@ function EditorCell({
   path,
   sectionId,
   blocks,
+  order,
   selectedId,
   onSelect,
   onEditContent,
@@ -476,6 +661,8 @@ function EditorCell({
   sectionId: string;
   owner: SiteOwner;
   blocks: Map<string, SiteBlock>;
+  /** The section's reading order — its leaves, here. See SectionEditor. */
+  order: readonly string[];
   selectedId: string | null;
   onSelect: (blockId: string) => void;
   onEditContent: (blockId: string) => void;
@@ -491,6 +678,7 @@ function EditorCell({
       <BlockChrome
         owner={owner}
         block={block}
+        order={order}
         selected={block.id === selectedId}
         onSelect={onSelect}
         onEditContent={onEditContent}
@@ -553,6 +741,7 @@ function EditorCell({
           path={[...path, 0]}
           sectionId={sectionId}
           blocks={blocks}
+          order={order}
           selectedId={selectedId}
           onSelect={onSelect}
           onEditContent={onEditContent}
@@ -576,6 +765,7 @@ function EditorCell({
           path={[...path, 1]}
           sectionId={sectionId}
           blocks={blocks}
+          order={order}
           selectedId={selectedId}
           onSelect={onSelect}
           onEditContent={onEditContent}
@@ -586,13 +776,19 @@ function EditorCell({
 }
 
 /**
- * A block on the canvas: what it is, and two ways in.
+ * A block on the canvas: what it is, where it sits, and two ways in.
  *
  * WHAT IT NO LONGER CARRIES. Visibility, alignment, tone, colour, size and the
  * two split buttons all used to be here, on every block, whether or not it was
  * the one being worked on — five controls of chrome around one block of content.
  * They live in the inspector now, pointed at whatever is selected, so a section
  * of four blocks shows four blocks rather than twenty-four controls.
+ *
+ * MOVING IS THE EXCEPTION THAT STAYS ON THE CANVAS. Reordering is spatial: you
+ * are choosing a position by looking at the positions, so the control has to be
+ * on the thing being moved and the result has to be visible the moment it
+ * happens. In the inspector it would be a button on a rail — and below `xl`, a
+ * button inside a sheet covering the very page it was rearranging.
  *
  * The PREVIEW ITSELF SELECTS, which is what makes that trade work: the block you
  * want to change is the thing you point at. Its contents are
@@ -601,17 +797,26 @@ function EditorCell({
  */
 function BlockChrome({
   block,
+  order,
   selected,
   onSelect,
   onEditContent,
   owner,
 }: {
   block: SiteBlock;
+  /**
+   * Every block in this section, in the order the section reads — see
+   * `renderOrder`. A single-entry list means there is nothing to trade places
+   * with, and the move buttons are not drawn at all.
+   */
+  order: readonly string[];
   selected: boolean;
   owner: SiteOwner;
   onSelect: (blockId: string) => void;
   onEditContent: (blockId: string) => void;
 }) {
+  const { mutate } = useSiteStore();
+  const index = order.indexOf(block.id);
   // Parsed here rather than trusting the row, so an empty or corrupt block gets
   // a placeholder its owner can actually tap instead of rendering as nothing —
   // which is exactly what the public page does with it, and would be
@@ -622,13 +827,21 @@ function BlockChrome({
     BLOCK_CATALOGUE.find((entry) => entry.type === block.type)?.label ?? block.type;
 
   return (
+    // SELECTION IS A RING, NOT A FILL, and the canvas skin is why. This box sits
+    // directly on the page being edited, so a lilac fill would tint the block
+    // inside it and the owner would be judging their own colours through it. A
+    // ring marks the same thing and touches nothing.
     <div
-      className={`h-full rounded-brutal border-2 p-2 transition-colors duration-[--dur-fast] ${
-        selected ? "border-ink bg-lilac shadow-brutal" : "border-ink/50 bg-paper/60"
+      className={`h-full rounded-brutal p-2 transition-shadow duration-[--dur-fast] ${
+        selected ? "ring-4 ring-lilac" : ""
       }`}
     >
-      <div className="flex items-center gap-1.5">
-        <span className="min-w-0 truncate rounded-full border-2 border-ink bg-paper px-2 py-0.5 font-display text-[0.65rem] tracking-wide uppercase">
+      {/* Wraps, because a bento pane can be a third of a phone's width and this
+          row now carries up to four controls. */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {/* Every label on the canvas carries its own paper fill: half the skins
+            are dark, and unfilled ink text vanishes on `glass` or `maximal`. */}
+        <span className="min-w-0 truncate rounded-full border-2 border-ink bg-paper px-2 py-0.5 font-display text-[0.65rem] tracking-wide text-ink uppercase">
           {label}
         </span>
 
@@ -636,12 +849,53 @@ function BlockChrome({
             only when it is not the default, because "Everyone" on every block
             is a badge that says nothing. */}
         {block.visibility !== "public" ? (
-          <span className="shrink-0 rounded-full border-2 border-ink bg-lemon px-2 py-0.5 text-[0.65rem] font-semibold">
+          <span className="shrink-0 rounded-full border-2 border-ink bg-lemon px-2 py-0.5 text-[0.65rem] font-semibold text-ink">
             {block.visibility === "private" ? "Only me" : "Connections"}
           </span>
         ) : null}
 
         <div className="ml-auto flex items-center gap-1">
+          {/* "EARLIER" AND "LATER" RATHER THAN "UP" AND "DOWN", because the
+              axis is the section's business and not this button's. A stacked
+              section moves a block up the page, a carousel moves it left along
+              the swipe, and a bento moves it to the pane before this one —
+              which may be beside it on a desktop and above it once the
+              container query stacks them. Reading order is the one description
+              that is true in all four, and the arrow is the list-reordering
+              convention for "toward the start". */}
+          {order.length > 1 ? (
+            <>
+              <IconButton
+                label={`Move ${label} earlier`}
+                disabled={index <= 0}
+                onClick={() =>
+                  mutate({
+                    kind: "moveBlock",
+                    blockId: block.id,
+                    direction: "up",
+                    fromIndex: index,
+                  })
+                }
+              >
+                ↑
+              </IconButton>
+              <IconButton
+                label={`Move ${label} later`}
+                disabled={index === -1 || index >= order.length - 1}
+                onClick={() =>
+                  mutate({
+                    kind: "moveBlock",
+                    blockId: block.id,
+                    direction: "down",
+                    fromIndex: index,
+                  })
+                }
+              >
+                ↓
+              </IconButton>
+            </>
+          ) : null}
+
           <IconButton label={`Edit ${label} content`} onClick={() => onEditContent(block.id)}>
             ✎
           </IconButton>
@@ -676,7 +930,7 @@ function BlockChrome({
           <button
             type="button"
             onClick={() => onEditContent(block.id)}
-            className="w-full rounded-brutal border-2 border-dashed border-ink/40 p-4 text-center text-xs font-semibold"
+            className="w-full rounded-brutal border-2 border-dashed border-ink/40 bg-paper/80 p-4 text-center text-xs font-semibold text-ink"
           >
             Empty — tap to add content
           </button>
@@ -708,7 +962,9 @@ function IconButton({
       title={label}
       disabled={disabled}
       onClick={onClick}
-      className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink text-xs font-semibold shadow-brutal-sm nb-press-sm disabled:opacity-40 ${
+      // `text-ink` explicitly: these sit on the skinned canvas, which sets its
+      // own `color`, and an inherited paper-on-paper glyph is an invisible one.
+      className={`flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-ink text-xs font-semibold text-ink shadow-brutal-sm nb-press-sm disabled:opacity-40 ${
         pressed ? "bg-lilac" : "bg-paper"
       }`}
     >

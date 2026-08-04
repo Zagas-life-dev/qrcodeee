@@ -29,7 +29,11 @@ export default async function PreviewPage() {
   if (!user) redirect("/login?next=/preview");
 
   const [{ data: profile }, { data: contact }, { data: fields }] = await Promise.all([
-    supabase.from("profiles").select("id, name, bio, photo_url").eq("id", user.id).single(),
+    supabase
+      .from("profiles")
+      .select("id, name, bio, photo_url, handle")
+      .eq("id", user.id)
+      .single(),
     supabase.from("contact_details").select("phone, email").eq("profile_id", user.id).maybeSingle(),
     supabase
       .from("custom_fields")
@@ -56,6 +60,7 @@ export default async function PreviewPage() {
   const asScanned: ScannedProfile = {
     id: profile.id,
     name: profile.name,
+    handle: profile.handle,
     photo_url: profile.photo_url,
     bio: profile.bio,
     phone: contact?.phone ?? null,

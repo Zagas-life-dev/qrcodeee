@@ -178,12 +178,25 @@ function BlockPanel({
   const label =
     BLOCK_CATALOGUE.find((entry) => entry.type === block.type)?.label ?? block.type;
 
+  const section = sections.find((entry) => entry.id === block.section_id);
+
+  /**
+   * The permanent identity block.
+   *
+   * Its content and its styling are editable like anything else; what it does
+   * not get is the three controls that would take it off the page — visibility,
+   * split, delete. Those are refused by RLS and by `applyMutation` too (see the
+   * permanent identity migration); this is just the half of it the owner sees,
+   * and offering a button whose only outcome is a refusal is worse than not
+   * offering it.
+   */
+  const permanent = section?.pinned === true;
+
   // Splitting only means something inside a bento — it writes a new leaf into
   // that section's cell tree, and the other three layouts have no tree to write
   // into. Offering it everywhere was offering two buttons that silently did
   // something different from what they said.
-  const inBento =
-    sections.find((section) => section.id === block.section_id)?.layout_type === "bento";
+  const inBento = section?.layout_type === "bento";
 
   // `isBlockType` rather than a cast because `type` is a text column that
   // degrades on purpose (see the schema) — a row written by a newer deploy
@@ -209,6 +222,11 @@ function BlockPanel({
         <span className="rounded-full border-2 border-ink bg-sky px-2.5 py-0.5 font-display text-xs tracking-wide uppercase">
           {label}
         </span>
+        {permanent ? (
+          <span className="rounded-full border-2 border-ink bg-lilac px-2.5 py-0.5 text-xs font-semibold">
+            Always on your page
+          </span>
+        ) : null}
         <button
           type="button"
           onClick={onDeselect}
@@ -218,6 +236,15 @@ function BlockPanel({
         </button>
       </div>
 
+      {permanent ? (
+        <p className="rounded-brutal border-2 border-ink bg-paper p-3 text-xs font-medium shadow-brutal-sm">
+          This is the top of your page — your name, photo and handle, read live
+          from your profile. Edit those on{" "}
+          <span className="font-semibold">Profile</span>; the tagline and the
+          styling are here.
+        </p>
+      ) : null}
+
       <button
         type="button"
         onClick={() => onEditContent(block.id)}
@@ -226,36 +253,38 @@ function BlockPanel({
         Edit content
       </button>
 
-      <Group title="Who can see it">
-        <div className="space-y-1.5">
-          {VISIBILITY.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={block.visibility === option.value}
-              onClick={() =>
-                mutate({
-                  kind: "setBlockVisibility",
-                  blockId: block.id,
-                  visibility: option.value,
-                })
-              }
-              className={`block w-full rounded-brutal border-2 border-ink px-3 py-2 text-left shadow-brutal-sm nb-press-sm ${
-                block.visibility === option.value ? "bg-lilac" : "bg-paper"
-              }`}
-            >
-              <span className="block text-sm font-semibold">{option.label}</span>
-              <span className="block text-xs font-medium">{option.hint}</span>
-            </button>
-          ))}
-        </div>
-      </Group>
+      {!permanent ? (
+        <Group title="Who can see it">
+          <div className="space-y-1.5">
+            {VISIBILITY.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={block.visibility === option.value}
+                onClick={() =>
+                  mutate({
+                    kind: "setBlockVisibility",
+                    blockId: block.id,
+                    visibility: option.value,
+                  })
+                }
+                className={`block w-full rounded-brutal border-2 border-ink px-3 py-2 text-left shadow-brutal-sm nb-press-sm ${
+                  block.visibility === option.value ? "bg-lilac" : "bg-paper"
+                }`}
+              >
+                <span className="block text-sm font-semibold">{option.label}</span>
+                <span className="block text-xs font-medium">{option.hint}</span>
+              </button>
+            ))}
+          </div>
+        </Group>
+      ) : null}
 
       <Group title="Look">
         <BlockStyleControls block={block} />
       </Group>
 
-      {inBento && splittable ? (
+      {!permanent && inBento && splittable ? (
         <Group title="Split this pane">
           <div className="flex flex-wrap gap-2">
             <button
@@ -280,23 +309,25 @@ function BlockPanel({
         </Group>
       ) : null}
 
-      <button
-        type="button"
-        onClick={() => {
-          mutate({ kind: "deleteBlock", blockId: block.id });
-          onDeselect();
-        }}
-        className="w-full min-h-11 rounded-full border-2 border-ink bg-coral px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
-      >
-        Delete block
-      </button>
+      {!permanent ? (
+        <button
+          type="button"
+          onClick={() => {
+            mutate({ kind: "deleteBlock", blockId: block.id });
+            onDeselect();
+          }}
+          className="w-full min-h-11 rounded-full border-2 border-ink bg-coral px-4 text-sm font-semibold shadow-brutal-sm nb-press-sm"
+        >
+          Delete block
+        </button>
+      ) : null}
     </div>
   );
 }
 
 /** The catalogue, and the one decision it needs: which section it lands in. */
 function AddPanel({
-  sections,
+  sections: all,
   targetSectionId,
   onTargetSection,
 }: {
@@ -305,6 +336,12 @@ function AddPanel({
   onTargetSection: (sectionId: string) => void;
 }) {
   const { mutate } = useSiteStore();
+
+  // The permanent identity section is not a container the owner fills — it holds
+  // its one block and the INSERT policy refuses any more. Excluded here so it is
+  // never offered as a destination, and so the numbering below matches the
+  // canvas, where the ordinary sections are the ones counted.
+  const sections = all.filter((section) => !section.pinned);
   const target = sections.find((section) => section.id === targetSectionId) ?? sections.at(-1);
 
   return (

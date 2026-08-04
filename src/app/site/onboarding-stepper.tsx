@@ -67,7 +67,10 @@ export function OnboardingStepper({ onDone }: { onDone: () => void }) {
   const [sectionId] = useState(newId);
 
   return (
-    <section className="rounded-brutal border-2 border-ink bg-paper p-4 shadow-brutal">
+    // `text-ink` explicitly: the canvas this sits on is painted in the owner's
+    // skin now, which sets its own `color` — and half the skins are dark, so an
+    // inherited foreground would be paper-on-paper here.
+    <section className="rounded-brutal border-2 border-ink bg-paper p-4 text-ink shadow-brutal">
       <ol className="flex items-center gap-2" aria-label="Setup progress">
         {["Layout", "First block", "Publish"].map((label, index) => (
           <li key={label} className="flex items-center gap-2">
@@ -168,8 +171,8 @@ export function OnboardingStepper({ onDone }: { onDone: () => void }) {
               <h2 className="font-display text-lg">Ready when you are.</h2>
               <p className="mt-1 text-sm font-medium">
                 Your page is still hidden. Publishing shows these sections to
-                anyone who opens your link — your contact card is already there
-                either way.
+                anyone who opens your link — your profile and your details are
+                already there either way.
               </p>
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <button

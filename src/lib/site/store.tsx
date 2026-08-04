@@ -57,6 +57,7 @@ import {
   addSection,
   deleteBlock,
   deleteSection,
+  moveBlock,
   moveSection,
   saveBlockContent,
   setBlockStyle,
@@ -219,6 +220,8 @@ function send(mutation: SiteMutation): Promise<SiteActionResult> {
       return addBlock(mutation.sectionId, mutation.type, mutation.blockId, mutation.splitFrom);
     case "deleteBlock":
       return deleteBlock(mutation.blockId);
+    case "moveBlock":
+      return moveBlock(mutation.blockId, mutation.direction, mutation.fromIndex);
     case "setBlockVisibility":
       return setBlockVisibility(mutation.blockId, mutation.visibility);
     case "setBlockStyle":

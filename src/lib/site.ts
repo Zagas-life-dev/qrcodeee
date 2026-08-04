@@ -22,7 +22,26 @@ export function siteUrl(): string {
   return configured.replace(/\/+$/, "");
 }
 
-/** The URL a QR code encodes for a given token (§6). */
-export function connectUrl(qrToken: string): string {
-  return `${siteUrl()}/connect/${encodeURIComponent(qrToken)}`;
+/**
+ * The URL a QR code encodes (§6).
+ *
+ * THE DESTINATION IS THE PERSON'S PUBLIC PAGE, and the token rides along as a
+ * query parameter. Two reasons, in order of weight:
+ *
+ *   1. It is where the scanner ends up anyway. `src/proxy.ts` rewrites this to
+ *      the redemption route, which connects and then redirects back here with
+ *      the token stripped. Encoding the destination rather than the machinery
+ *      means the URL in the code is the URL in the address bar.
+ *   2. A plain camera app shows the raw URL before opening it. "qr.app/u/ada"
+ *      is something a person can recognise and choose to open;
+ *      "qr.app/connect/9f8c1b2a-…" is not.
+ *
+ * THE HANDLE IS DECORATION AND THE TOKEN IS THE CREDENTIAL. Nothing downstream
+ * trusts the handle in this URL — `connect_via_scan` resolves the token to a
+ * profile and the redirect uses THAT profile's handle, so a hand-crafted code
+ * naming someone else connects you to whoever the token belongs to and sends
+ * you to their page. See the redemption route.
+ */
+export function connectUrl(qrToken: string, handle: string): string {
+  return `${siteUrl()}/u/${encodeURIComponent(handle)}?c=${encodeURIComponent(qrToken)}`;
 }

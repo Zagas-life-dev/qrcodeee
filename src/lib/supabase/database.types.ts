@@ -77,6 +77,14 @@ export type NetworkingStats = {
 export type ScannedProfile = {
   id: string;
   name: string;
+  /**
+   * Where a scan is sent afterwards — the person's public page.
+   *
+   * Resolved from the TOKEN inside `connect_via_scan`, never from the handle in
+   * the URL the scanner arrived on, so a hand-crafted code naming someone else
+   * still lands on whoever the token belongs to.
+   */
+  handle: string;
   photo_url: string | null;
   bio: string | null;
   phone: string | null;
@@ -138,7 +146,8 @@ export type SetHandleResult =
 export type ScanResult =
   | { status: "new_connection"; connection_epoch: number; profile: ScannedProfile }
   | { status: "already_connected"; connection_epoch: number; profile: ScannedProfile }
-  | { status: "self_scan" }
+  /** Carries just enough to send someone who scanned their own code home. */
+  | { status: "self_scan"; profile: { id: string; handle: string } }
   | { status: "invalid_token" }
   | { status: "blocked" }
   | { status: "unauthenticated" }
@@ -189,9 +198,10 @@ export type Database = {
         Relationships: [];
       };
       /**
-       * S8. One row per profile, created at signup. `published` gates the custom
-       * sections only — /u/{handle} renders the contact card either way, so
-       * blocks are strictly additive to a page that already works.
+       * S8. One row per profile, created at signup. `published` gates the
+       * ORDINARY sections only: the pinned identity section is exempt in RLS, so
+       * /u/{handle} still says whose page it is either way and blocks stay
+       * strictly additive to a page that already works.
        */
       sites: {
         Row: {
@@ -221,6 +231,12 @@ export type Database = {
           /** The Cell tree (S4), or null for the non-bento layouts. Validate with parseCell. */
           root_cell: Json | null;
           sort_order: number;
+          /**
+           * The permanent identity section — one per site, sorted first, and
+           * the only section the owner's DELETE policy refuses. Created by
+           * `private.create_identity_section`, never by the client.
+           */
+          pinned: boolean;
           created_at: string;
           updated_at: string;
         };
@@ -230,6 +246,8 @@ export type Database = {
           layout_type?: SectionLayout;
           root_cell?: Json | null;
           sort_order?: number;
+          /** Not writable in practice: the INSERT policy requires `not pinned`. */
+          pinned?: boolean;
         };
         Update: {
           layout_type?: SectionLayout;
@@ -601,6 +619,8 @@ export type Database = {
           connection_id: string;
           profile_id: string;
           name: string;
+          /** Where the row links: their public page, the only page they have. */
+          handle: string;
           photo_url: string | null;
           deleted_at: string | null;
           connected_at: string;

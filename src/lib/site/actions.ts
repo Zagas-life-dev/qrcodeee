@@ -17,11 +17,16 @@ import {
   removeBlock,
   setRatioAt,
   splitAtBlock,
+  swapLeaves,
   validateCellTree,
   type Cell,
   type CellPath,
 } from "./cell";
 import { STARTER_CONTENT, isBlockType } from "./blocks";
+// Pure ordering rules, shared so the server and the optimistic draft cannot
+// disagree about what "one place along" means. Nothing about permission comes
+// from there — see the header of mutations.ts.
+import { renderOrder, swapBlockOrder } from "./mutations";
 import {
   isSiteDensity,
   isSiteFont,
@@ -42,6 +47,32 @@ const BAD_ID: SiteActionResult = {
   ok: false,
   message: "Couldn't save that — reload the page and try again.",
 };
+const PINNED: SiteActionResult = {
+  ok: false,
+  message: "Your profile section is always on your page.",
+};
+
+/**
+ * Is this the permanent identity section (or the block inside it)?
+ *
+ * THE RLS POLICIES ARE THE ENFORCEMENT; this is the explanation. The owner's
+ * DELETE and INSERT policies already exclude the pinned section, so a request
+ * that reaches Postgres cannot remove it — but a PostgREST delete filtered away
+ * by RLS reports success having changed nothing, which would tell the caller the
+ * row was deleted when it is still there. Checking first turns a silent lie into
+ * a sentence.
+ */
+async function isPinnedSection(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  sectionId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from("site_sections")
+    .select("pinned")
+    .eq("id", sectionId)
+    .maybeSingle();
+  return data?.pinned === true;
+}
 
 /**
  * Site mutations (site-spec S4/S5).
@@ -90,6 +121,12 @@ async function bust(profileId: string) {
  * Returns `tree: null` for a non-bento section, which every caller treats as
  * "no tree to maintain" rather than as an error — switching a section to
  * `single` and back must not lose the blocks.
+ *
+ * ORDERED BY `sort_order`, WHICH IS NOT COSMETIC. For every layout but bento
+ * that order IS the arrangement (see `renderOrder`), so `moveBlock` reads a
+ * position out of this list and compares it against what the editor was showing.
+ * PostgREST makes no promise without an explicit order, and an unordered read
+ * would make that comparison a coin toss.
  */
 async function loadSection(
   supabase: Awaited<ReturnType<typeof createClient>>,
@@ -105,12 +142,14 @@ async function loadSection(
 
   const { data: blocks } = await supabase
     .from("site_blocks")
-    .select("id")
-    .eq("section_id", sectionId);
+    .select("id, sort_order")
+    .eq("section_id", sectionId)
+    .order("sort_order", { ascending: true });
 
   return {
     layout: section.layout_type,
     tree: section.root_cell ? parseCell(section.root_cell) : null,
+    blocks: blocks ?? [],
     blockIds: (blocks ?? []).map((b) => b.id),
   };
 }
@@ -191,6 +230,8 @@ export async function deleteSection(sectionId: string): Promise<SiteActionResult
   if (!user) return SIGNED_OUT;
 
   const supabase = await createClient();
+  if (await isPinnedSection(supabase, sectionId)) return PINNED;
+
   // Blocks cascade from the section, so the tree goes with them.
   const { error } = await supabase.from("site_sections").delete().eq("id", sectionId);
   if (error) return { ok: false, message: "Couldn't delete that section." };
@@ -230,7 +271,7 @@ export async function moveSection(
 
   const { data: sections } = await supabase
     .from("site_sections")
-    .select("id, sort_order")
+    .select("id, sort_order, pinned")
     .eq("site_id", user.id)
     .order("sort_order", { ascending: true });
 
@@ -244,6 +285,12 @@ export async function moveSection(
 
   const a = sections[index];
   const b = sections[target];
+
+  // A swap has two ends and the identity section must survive both — moving it,
+  // or moving the first ordinary section up past it, would put somebody's name
+  // in the middle of their own page. No RLS counterpart: the UPDATE policy has
+  // to stay open for `sort_order` writes generally.
+  if (a.pinned || b.pinned) return PINNED;
 
   await supabase.from("site_sections").update({ sort_order: b.sort_order }).eq("id", a.id);
   await supabase.from("site_sections").update({ sort_order: a.sort_order }).eq("id", b.id);
@@ -323,6 +370,8 @@ export async function addBlock(
   if (!isBlockType(type)) return { ok: false, message: "Unknown block type." };
 
   const supabase = await createClient();
+  if (await isPinnedSection(supabase, sectionId)) return PINNED;
+
   const section = await loadSection(supabase, sectionId);
   if (!section) return { ok: false, message: "That section no longer exists." };
 
@@ -406,6 +455,7 @@ export async function deleteBlock(blockId: string): Promise<SiteActionResult> {
     .maybeSingle();
 
   if (!block) return OK;
+  if (await isPinnedSection(supabase, block.section_id)) return PINNED;
 
   const section = await loadSection(supabase, block.section_id);
 
@@ -429,6 +479,94 @@ export async function deleteBlock(blockId: string): Promise<SiteActionResult> {
   return OK;
 }
 
+/**
+ * Move a block one place along, within its own section.
+ *
+ * WITHIN ITS OWN SECTION IS THE RULE, not a first cut at one. A section decides
+ * how the blocks inside it sit together — a bento arranges them in a cell tree,
+ * the other three read `sort_order` — so a block's position is only meaningful
+ * against its siblings. Carrying one across a boundary would mean deleting it
+ * from one arrangement and inventing a place for it in another, under that
+ * section's layout and its caps; sections are the thing that moves between
+ * sections, and `moveSection` is how.
+ *
+ * TWO RECORDS, WRITTEN FROM ONE DECISION. `renderOrder` picks whichever of the
+ * tree and the numbers the section actually renders by, the swap is computed
+ * once against that, and both records are then written from it. Deriving them
+ * separately is how a tree and a block list come to disagree, which `saveTree`
+ * refuses and which would leave a block invisible on the page and unreachable in
+ * the editor.
+ *
+ * `fromIndex` carries the same contract as `moveSection`: a resend — which the
+ * offline queue cannot avoid, having no way to tell a lost reply from a lost
+ * request — and a move computed against an arrangement a second tab has since
+ * changed both land as no-ops rather than as a second, unasked-for move.
+ */
+export async function moveBlock(
+  blockId: string,
+  direction: "up" | "down",
+  fromIndex: number,
+): Promise<SiteActionResult> {
+  const user = await getSessionUser();
+  if (!user) return SIGNED_OUT;
+
+  const supabase = await createClient();
+
+  const { data: block } = await supabase
+    .from("site_blocks")
+    .select("section_id")
+    .eq("id", blockId)
+    .maybeSingle();
+
+  // Deleted from under a queued move. Dropping it beats re-materialising it.
+  if (!block) return OK;
+
+  const section = await loadSection(supabase, block.section_id);
+  if (!section) return OK;
+
+  // No pinned check: unlike delete and insert, both ends of this swap are
+  // inside one section, so it can never reach across into the identity. That
+  // section holds exactly one block, so the bounds check below is already the
+  // whole answer for it.
+  const order = renderOrder(section.layout, section.tree, section.blockIds);
+  const index = order.indexOf(blockId);
+  if (index === -1 || index !== fromIndex) return OK;
+
+  const target = direction === "up" ? index - 1 : index + 1;
+  if (target < 0 || target >= order.length) return OK;
+
+  const a = order[index];
+  const b = order[target];
+
+  const before = new Map(section.blocks.map((row) => [row.id, row.sort_order]));
+  for (const row of swapBlockOrder(section.blocks, a, b)) {
+    if (before.get(row.id) === row.sort_order) continue;
+    const { error } = await supabase
+      .from("site_blocks")
+      .update({ sort_order: row.sort_order })
+      .eq("id", row.id);
+    if (error) return { ok: false, message: "Couldn't move that block." };
+  }
+
+  // Only when the tree is the arrangement in force. A stacked section can be
+  // holding a bento tree from before the layout was switched, and that tree is
+  // kept precisely so switching back restores the arrangement — rewriting it
+  // from a move made in a different layout would be scrambling what is being
+  // kept.
+  if (section.layout === "bento" && section.tree) {
+    const saved = await saveTree(
+      supabase,
+      block.section_id,
+      swapLeaves(section.tree, a, b),
+      section.blockIds,
+    );
+    if (!saved.ok) return saved;
+  }
+
+  await bust(user.id);
+  return OK;
+}
+
 export async function setBlockVisibility(
   blockId: string,
   visibility: BlockVisibility,
@@ -437,6 +575,20 @@ export async function setBlockVisibility(
   if (!user) return SIGNED_OUT;
 
   const supabase = await createClient();
+
+  // The identity block stays public: a page whose name is hidden from strangers
+  // is a page a stranger cannot identify at all. Unlike the delete rules this
+  // one has no RLS counterpart — the owner's UPDATE policy deliberately covers
+  // the pinned section so taglines and styling stay editable — so this check is
+  // the enforcement rather than a nicer error for it.
+  const { data: block } = await supabase
+    .from("site_blocks")
+    .select("section_id")
+    .eq("id", blockId)
+    .maybeSingle();
+
+  if (block && (await isPinnedSection(supabase, block.section_id))) return PINNED;
+
   const { error } = await supabase
     .from("site_blocks")
     .update({ visibility })

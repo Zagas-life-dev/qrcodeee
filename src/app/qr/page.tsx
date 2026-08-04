@@ -18,9 +18,11 @@ export default async function QrPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login?next=/qr");
 
+  // `handle` because the code now encodes the public page it lands on, not the
+  // redemption path — see connectUrl.
   const { data: profile } = await supabase
     .from("profiles")
-    .select("qr_style")
+    .select("qr_style, handle")
     .eq("id", user.id)
     .single();
 
@@ -73,7 +75,7 @@ export default async function QrPage() {
             scannable rather than a broken code (§6). */}
         <QrEditor
           initialStyle={normalizeQrStyle(profile.qr_style)}
-          connectUrl={connectUrl(minted.token)}
+          connectUrl={connectUrl(minted.token, profile.handle)}
           expiresAt={minted.expiresAt}
         />
       </Columns>

@@ -136,11 +136,18 @@ export default async function ConnectionsPage({
                       only the name is the actual anchor — a link may not wrap
                       the Save and ••• controls beside it. §8: a deleted account
                       has no page worth opening, so its row stays inert. */}
-                  {deleted ? (
+                  {/* Opens their PUBLIC page. There is no per-connection detail
+                      page any more — a person has one page in this product,
+                      and it is the one they built. Manage actions live on it
+                      for a connected viewer, and the ••• menu to the right is
+                      still here for reaching them without leaving the list.
+                      §8: a deleted account has no page worth opening, so its
+                      row stays inert. */}
+                  {deleted || !row.handle ? (
                     <p className="truncate font-display text-sm">{row.name}</p>
                   ) : (
                     <Link
-                      href={`/connections/${row.profile_id}`}
+                      href={`/u/${row.handle}`}
                       className="nb-stretch block truncate font-display text-sm"
                     >
                       {row.name}

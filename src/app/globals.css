@@ -831,11 +831,19 @@ body:not(:has([data-tab-bar])) .shell-content {
    Contrast between --sk-ink and --sk-bg is asserted in theme.test.ts at 4.5:1.
    These are strangers' pages; nobody is going to eyeball six skins per release.
 
-   WHAT IS DELIBERATELY NOT THEMED: the contact card and the connect/save
-   actions on /u/{handle}. They keep app styling under every skin. A page owner
-   restyling the "Save contact" affordance is precisely the move a phishing page
-   would make, so the one surface that says "this is Skan QR and this is what
-   tapping does" is not customer-configurable. */
+   WHAT IS DELIBERATELY NOT THEMED: the connect/save actions on /u/{handle}.
+   They keep app styling under every skin. A page owner restyling the "Save
+   contact" affordance is precisely the move a phishing page would make, so the
+   one surface that says "this is Skan QR and this is what tapping does" is not
+   customer-configurable.
+
+   THE CONTACT CARD USED TO BE ON THAT LIST AND NO LONGER IS. It was an app-drawn
+   hero — name, photo, phone, email — sitting above everything its owner built,
+   identical on every site in the product. The identity is now the permanent
+   first block of the owner's own page and the details panel beside it takes the
+   skin too (contact-details.tsx). The boundary did not move for the sake of
+   looks: showing someone's phone number is not the move a phishing page makes,
+   OFFERING TO SAVE IT is, and that button is still ours. */
 
 .site-theme {
   font-family: var(--sk-font, var(--font-sans));
@@ -862,7 +870,11 @@ body:not(:has([data-tab-bar])) .shell-content {
   pointer-events: none;
 }
 
-/* The page backdrop, contained. Used by the editor's preview tiles. */
+/* The page backdrop, contained rather than fixed to the viewport. Two callers:
+   the theme picker's six preview tiles, and the editor's canvas — which wears
+   the owner's real skin so the blocks on it are drawn the way the page will draw
+   them, instead of the unstyled boxes they were before the tokens reached
+   them. */
 .site-theme-swatch {
   background: var(--sk-page);
 }

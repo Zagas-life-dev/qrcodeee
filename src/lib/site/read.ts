@@ -41,6 +41,12 @@ export type SiteSection = {
   layout_type: SectionLayout;
   root_cell: Json | null;
   sort_order: number;
+  /**
+   * The permanent identity section. Exactly one per site, sorted first, and the
+   * one section that renders whether or not the page is published — it carries
+   * the name and photo that used to live in a hardcoded card on /u/{handle}.
+   */
+  pinned: boolean;
 };
 
 export type PublicSite = {
@@ -58,10 +64,13 @@ export type PublicSite = {
  * and safe to share. Connections-only blocks are therefore NOT here; they come
  * from `getGatedBlocks` per viewer, and the renderer merges the two.
  *
- * Publication is enforced by RLS rather than by a filter: the anon policy on
- * `sites` only exposes rows with `published = true`, so an unpublished site
- * returns null here and the profile page falls back to the contact card alone.
- * Writing `.eq("published", true)` as well would be a second copy of the rule.
+ * PUBLICATION IS STILL ENFORCED BY RLS RATHER THAN BY A FILTER, but it moved
+ * one table down. The anon policy on `sites` no longer checks `published` — the
+ * one on `site_sections` does, with an exception for the pinned identity
+ * section. So an unpublished site returns here with exactly one section in it:
+ * whose page this is, and nothing else. Writing `.eq("published", true)`
+ * anywhere in this file would be a second copy of a rule that now has a
+ * carve-out, which is the worst kind to duplicate.
  */
 export async function getPublicSite(profileId: string): Promise<PublicSite | null> {
   "use cache";
@@ -76,11 +85,13 @@ export async function getPublicSite(profileId: string): Promise<PublicSite | nul
     .eq("profile_id", profileId)
     .maybeSingle();
 
+  // Blocked, or no site row at all. Not "unpublished" any more — that case now
+  // returns a site with the identity section in it.
   if (!site) return null;
 
   const { data: sections } = await supabase
     .from("site_sections")
-    .select("id, layout_type, root_cell, sort_order")
+    .select("id, layout_type, root_cell, sort_order, pinned")
     .eq("site_id", profileId)
     .order("sort_order", { ascending: true });
 

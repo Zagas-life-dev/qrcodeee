@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { notificationText } from "@/lib/notifications/display";
 import { markRead } from "@/lib/notifications/actions";
 import { saveContact } from "@/lib/contacts/save-contact";
+import { FRESH_MS } from "@/lib/contacts/encounter";
 import type { NotificationType } from "@/lib/supabase/database.types";
 
 /**
@@ -18,7 +19,7 @@ import type { NotificationType } from "@/lib/supabase/database.types";
  * scanned took no action at all, so they need a different trigger path entirely:
  *
  *   app foreground -> Realtime, below. A live scan REDIRECTS them to the
- *                     scanner's profile page, mirroring what the scanner is
+ *                     scanner's public page, mirroring what the scanner is
  *                     already looking at, so one scan leaves both people holding
  *                     each other's contact.
  *   app returns    -> the reconcile pass, which ALSO redirects when the event is
@@ -29,19 +30,6 @@ import type { NotificationType } from "@/lib/supabase/database.types";
  * must not be trusted for delivery: a dropped websocket, a backgrounded tab, or
  * a device asleep during the insert all lose the event with no error anywhere.
  */
-
-/**
- * How recent a connection has to be for arriving at the app to still count as
- * "this is happening now" and redirect rather than prompt.
- *
- * A scan is an in-person event — the other person is standing there. Two minutes
- * covers a phone that was locked or backgrounded across the scan and unlocked
- * straight after, which is the ordinary case and the one that previously needed
- * a notification tap. It is deliberately short: redirecting someone into a
- * connection page for an encounter they have already walked away from is worse
- * than the toast.
- */
-const FRESH_MS = 120_000;
 
 type Row = {
   id: string;
@@ -66,9 +54,11 @@ export function ConnectionListener({ userId }: { userId: string }) {
       seen.current.add(row.id);
 
       void (async () => {
+        // `handle` because the redirect below goes to the person's public page,
+        // which is now the only page a person has in this product.
         const { data: profile } = await supabase
           .from("profiles")
-          .select("name, deleted_at")
+          .select("name, handle, deleted_at")
           .eq("id", row.source_profile_id)
           .maybeSingle();
 
@@ -93,21 +83,21 @@ export function ConnectionListener({ userId }: { userId: string }) {
         //                   navigating someone away because a contact edited
         //                   their bio would be indefensible.
         //   not deleted     §8: no card worth opening.
-        if (live && row.type === "new_connection" && !profile?.deleted_at) {
-          const target = `/connections/${row.source_profile_id}`;
+        if (live && row.type === "new_connection" && !profile?.deleted_at && profile?.handle) {
+          const target = `/u/${profile.handle}`;
           // Delivered as forcefully as this app can deliver anything, so it is
           // spent. Without this a refresh inside FRESH_MS re-fires the redirect,
           // and every refresh after it re-raises the toast.
           void markRead([row.id]);
           // Guards the mutual-scan case: if both people scan at once, whoever is
           // already on the other's page must not be bounced through it again and
-          // lose the save they are mid-way through. Compared on pathname alone,
-          // so the ?new=1 below doesn't defeat the guard.
+          // lose the save they are mid-way through.
           //
-          // ?new=1 marks this as a live encounter, which is what permits the
-          // target page to auto-open the OS contact sheet — the same page
-          // reached by tapping a row in the connections list must not.
-          if (window.location.pathname !== target) router.push(`${target}?new=1`);
+          // NOTHING IS APPENDED TO THIS URL. It used to carry `?new=1` to earn
+          // the auto-opening contact sheet; the target page now works that out
+          // from how old the connection is (lib/contacts/encounter.ts), so
+          // there is no marker here for anyone to copy into a shared link.
+          if (window.location.pathname !== target) router.push(target);
           return;
         }
 

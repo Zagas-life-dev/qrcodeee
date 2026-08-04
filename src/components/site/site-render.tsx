@@ -22,19 +22,43 @@ export function SiteRender({
   site,
   gatedBlocks,
   owner,
+  contact,
 }: {
   site: PublicSite;
   gatedBlocks: SiteBlock[];
   owner: SiteOwner;
+  /**
+   * The contact details panel, slotted between the identity and everything the
+   * owner built (see contact-details.tsx).
+   *
+   * A NODE RATHER THAN DATA, because of where the two halves come from: the site
+   * is a cached, viewer-independent read and the details are per-viewer through
+   * RLS. Passing phone and email into this component would put viewer-dependent
+   * values inside the thing that must stay identical for everybody. Passing the
+   * rendered element keeps the split intact and still lets the skin style it —
+   * the wrapper below is what carries the theme, and this lands inside it.
+   */
+  contact?: React.ReactNode;
 }) {
   const blocks = new Map<string, SiteBlock>();
   for (const block of [...site.blocks, ...gatedBlocks]) blocks.set(block.id, block);
 
-  const sections = site.sections.filter((section) =>
+  const withBlocks = site.sections.filter((section) =>
     [...blocks.values()].some((block) => block.section_id === section.id),
   );
 
-  if (sections.length === 0) return null;
+  /**
+   * The permanent identity section leads, and the rest follow.
+   *
+   * Sorted first in the database too (`sort_order` -1), so this split is a
+   * guarantee rather than a re-sort: it is what stops a `moveSection` bug, an
+   * out-of-order write or a future feature putting the person's name halfway
+   * down their own page.
+   */
+  const pinned = withBlocks.find((section) => section.pinned) ?? null;
+  const sections = withBlocks.filter((section) => !section.pinned);
+
+  if (!pinned && sections.length === 0 && !contact) return null;
 
   // Never null — an unknown or corrupt value falls back to the default rather
   // than rendering an unstyled page. See parseTheme.
@@ -47,7 +71,10 @@ export function SiteRender({
     // the worst a hand-written `theme` column can do is pick a different one of
     // six looks we designed.
     <div
-      className="site-theme site-theme-page mt-8 flex flex-col"
+      // No top margin of its own: this is the first thing on the page now that
+      // the app's contact card no longer precedes it, so the spacing above it
+      // belongs to the page.
+      className="site-theme site-theme-page flex flex-col"
       data-skin={theme.skin}
       data-font={theme.font}
       data-radius={theme.radius}
@@ -65,6 +92,19 @@ export function SiteRender({
           : undefined
       }
     >
+      {pinned ? (
+        <SectionRender
+          owner={owner}
+          layout={pinned.layout_type}
+          rootCell={pinned.root_cell}
+          blocks={[...blocks.values()]
+            .filter((block) => block.section_id === pinned.id)
+            .sort((a, b) => a.sort_order - b.sort_order)}
+        />
+      ) : null}
+
+      {contact}
+
       {sections.map((section) => (
         <SectionRender
           key={section.id}

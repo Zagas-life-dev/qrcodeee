@@ -38,7 +38,7 @@ export async function getOwnSite(): Promise<OwnerSite | null> {
 
   const { data: sections } = await supabase
     .from("site_sections")
-    .select("id, layout_type, root_cell, sort_order")
+    .select("id, layout_type, root_cell, sort_order, pinned")
     .eq("site_id", user.id)
     .order("sort_order", { ascending: true });
 

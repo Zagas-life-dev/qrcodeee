@@ -27,12 +27,27 @@ export default async function SiteEditorPage() {
   if (!user) redirect("/login?next=/site");
 
   const supabase = await createClient();
-  const [{ data: profile }, site] = await Promise.all([
+  // The contact reads are here rather than in the editor because the details are
+  // part of the PAGE now — they sit between the identity and everything below it
+  // (see contact-details.tsx) — and an editor that skipped them would be showing
+  // a page with a hole in the middle. They are read-only on this screen; /profile
+  // is where they are edited.
+  const [{ data: profile }, { data: contact }, { data: fields }, site] = await Promise.all([
     supabase
       .from("profiles")
       .select("handle, name, photo_url, bio")
       .eq("id", user.id)
       .maybeSingle(),
+    supabase
+      .from("contact_details")
+      .select("phone, email")
+      .eq("profile_id", user.id)
+      .maybeSingle(),
+    supabase
+      .from("custom_fields")
+      .select("label, value")
+      .eq("profile_id", user.id)
+      .order("sort_order", { ascending: true }),
     getOwnSite(),
   ]);
 
@@ -66,6 +81,11 @@ export default async function SiteEditorPage() {
             handle: profile.handle,
           }}
           publicUrl={`${siteUrl()}/u/${profile.handle}`}
+          contact={{
+            phone: contact?.phone ?? null,
+            email: contact?.email ?? null,
+            fields: fields ?? [],
+          }}
         />
       </SiteStoreProvider>
     </Page>

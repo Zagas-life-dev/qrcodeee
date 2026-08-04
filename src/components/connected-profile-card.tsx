@@ -5,11 +5,12 @@ import ProfileCard from "./profile-card";
 /**
  * A profile as a CONNECTION sees it.
  *
- * Shared by /connect/[token], /preview and /connections/[profileId] on purpose.
- * A preview built from its own markup is a preview that drifts: add a field to
- * one and forget the other, and the app starts confidently showing people
- * something different from what their connections actually get. Same component,
- * same shape, no drift possible.
+ * DOWN TO ONE CALLER, /preview, and that is worth knowing before extending it.
+ * It was shared with /connect/[token] and /connections/[profileId] — both gone,
+ * because a scan now lands on the person's own public page and that is the only
+ * page a person has. What is left is the owner looking at what a connection of
+ * theirs sees, which is still built from `ScannedProfile` rather than from its
+ * own markup so the preview cannot drift from the real payload.
  *
  * The shape is `ScannedProfile` — exactly what connect_via_scan returns — so the
  * preview is also pinned to the real payload rather than to a hand-assembled

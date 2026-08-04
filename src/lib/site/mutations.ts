@@ -42,11 +42,13 @@ import { DEFAULT_BLOCK_STYLE, type BlockStyle } from "./block-style";
 import { STARTER_CONTENT, type BlockType } from "./blocks";
 import {
   MAX_CELL_LEAVES,
+  cellLeaves,
   insertBlock,
   parseCell,
   removeBlock,
   setRatioAt,
   splitAtBlock,
+  swapLeaves,
   type Cell,
   type CellPath,
 } from "./cell";
@@ -76,6 +78,14 @@ export type SiteMutation =
       splitFrom?: SplitFrom;
     }
   | { kind: "deleteBlock"; blockId: string }
+  /**
+   * One place along, WITHIN the block's own section — see `renderOrder` for what
+   * "along" means in each layout. `fromIndex` earns its place here for the same
+   * reason it does on `moveSection`, and does more work: the index is read from
+   * the order the section RENDERS in, which for a bento is its cell tree rather
+   * than `sort_order`.
+   */
+  | { kind: "moveBlock"; blockId: string; direction: "up" | "down"; fromIndex: number }
   | { kind: "setBlockVisibility"; blockId: string; visibility: BlockVisibility }
   | { kind: "setBlockStyle"; blockId: string; style: BlockStyle }
   | { kind: "saveBlockContent"; blockId: string; content: unknown }
@@ -94,6 +104,7 @@ const MUTATION_KINDS = new Set<string>([
   "setSectionLayout",
   "addBlock",
   "deleteBlock",
+  "moveBlock",
   "setBlockVisibility",
   "setBlockStyle",
   "saveBlockContent",
@@ -161,6 +172,33 @@ function sectionOf(site: OwnerSite, blockId: string): OwnerSection | undefined {
   );
 }
 
+/**
+ * The refusals that protect the permanent identity section.
+ *
+ * A SECOND COPY OF AN RLS RULE, AND DELIBERATELY SO. The owner's DELETE
+ * policies exclude the pinned section and the block inside it, so the server
+ * would refuse these anyway — but "the server would refuse" is a round trip
+ * away, and this editor is built to work with no server at all. Without the
+ * check here, a stale queued delete would remove someone's identity from their
+ * own screen and only put it back when the connection returned.
+ *
+ * Refusing rather than silently no-op'ing: `applyAll` skips a refused mutation
+ * when folding the queue, and `mutate` surfaces the message. Both are what
+ * should happen to an edit that cannot ever land.
+ */
+const PINNED_REFUSAL: ApplyResult = {
+  ok: false,
+  message: "Your profile section is always on your page.",
+};
+
+function isPinnedSection(site: OwnerSite, sectionId: string): boolean {
+  return findSection(site, sectionId)?.pinned === true;
+}
+
+function isInPinnedSection(site: OwnerSite, blockId: string): boolean {
+  return sectionOf(site, blockId)?.pinned === true;
+}
+
 function replaceSection(site: OwnerSite, next: OwnerSection): OwnerSite {
   return {
     ...site,
@@ -187,6 +225,64 @@ function patchBlock(
         : section,
     ),
   };
+}
+
+// ── Ordering, shared with the server ───────────────────────────────────────
+
+/**
+ * The order a section's blocks are actually read in.
+ *
+ * TWO RECORDS EXIST AND THE LAYOUT DECIDES WHICH ONE IS THE ARRANGEMENT. A bento
+ * is its cell tree, read depth-first — which is reading order, since a row split
+ * lays out left to right and a column top to bottom. Every other layout is the
+ * blocks' own `sort_order`, and so is a bento whose tree failed to parse, which
+ * is exactly how site-render.tsx degrades.
+ *
+ * Exported because moving a block is the one edit where the editor, the local
+ * apply and the server action must all agree about what "one place along" means.
+ * Three copies of that rule would drift, and the symptom would be a move that
+ * looks right until the page reloads.
+ */
+export function renderOrder(
+  layout: SectionLayout,
+  tree: Cell | null,
+  blockIds: readonly string[],
+): string[] {
+  return layout === "bento" && tree ? cellLeaves(tree) : [...blockIds];
+}
+
+/**
+ * Two blocks trade places, and the section is renumbered from zero.
+ *
+ * RENUMBERED RATHER THAN SWAPPED PAIRWISE, which is where this parts company
+ * with `moveSection`. Sections swap their two `sort_order` values so a full
+ * rewrite can't clobber a concurrent edit elsewhere in the page. Blocks cannot
+ * afford that, because their numbers are not guaranteed distinct: `addBlock`
+ * numbers a new block by the section's block COUNT, so deleting from the middle
+ * and adding again produces two blocks sharing a number — and swapping two equal
+ * values is a button that visibly does nothing. Assigning positions makes the
+ * move absolute, and quietly repairs the collision the first time anything in
+ * the section moves.
+ *
+ * The blast radius is one section either way, and only rows whose number
+ * actually changes are rewritten — so the ordinary case is still two.
+ */
+export function swapBlockOrder<T extends { id: string; sort_order: number }>(
+  blocks: readonly T[],
+  a: string,
+  b: string,
+): T[] {
+  const i = blocks.findIndex((block) => block.id === a);
+  const j = blocks.findIndex((block) => block.id === b);
+  if (i === -1 || j === -1) return [...blocks];
+
+  const next = [...blocks];
+  next[i] = blocks[j];
+  next[j] = blocks[i];
+
+  return next.map((block, index) =>
+    block.sort_order === index ? block : { ...block, sort_order: index },
+  );
 }
 
 /**
@@ -249,7 +345,13 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
             id: mutation.sectionId,
             layout_type: mutation.layout,
             root_cell: null,
+            // The permanent identity section sits at -1, so a site with only
+            // that one still starts the first added section at 0 — same
+            // arithmetic as the server's `max(sort_order) + 1`.
             sort_order: (last?.sort_order ?? -1) + 1,
+            // Nothing the client adds is ever pinned; the one that is comes
+            // from `private.create_identity_section` and nowhere else.
+            pinned: false,
             blocks: [],
           },
         ],
@@ -257,6 +359,7 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
     }
 
     case "deleteSection":
+      if (isPinnedSection(site, mutation.sectionId)) return PINNED_REFUSAL;
       return ok({
         ...site,
         sections: site.sections.filter((section) => section.id !== mutation.sectionId),
@@ -270,6 +373,11 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
 
       const target = mutation.direction === "up" ? index - 1 : index + 1;
       if (target < 0 || target >= site.sections.length) return ok(site);
+
+      // A swap has two ends, and the identity section must survive both. Moving
+      // it, or moving the first ordinary section "up" past it, would put
+      // somebody's name in the middle of their own page.
+      if (site.sections[index].pinned || site.sections[target].pinned) return ok(site);
 
       const sections = [...site.sections];
       const a = sections[index];
@@ -303,6 +411,9 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
       const section = findSection(site, mutation.sectionId);
       if (!section) return ok(site);
       if (sectionOf(site, mutation.blockId)) return ok(site);
+      // The identity section holds one block and always will — it is the
+      // identity, not a container. The INSERT policy says the same thing.
+      if (section.pinned) return PINNED_REFUSAL;
 
       const block: SiteBlock = {
         id: mutation.blockId,
@@ -347,6 +458,7 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
     case "deleteBlock": {
       const section = sectionOf(site, mutation.blockId);
       if (!section) return ok(site);
+      if (section.pinned) return PINNED_REFUSAL;
 
       const blocks = section.blocks.filter((block) => block.id !== mutation.blockId);
       const tree = parseCell(section.root_cell);
@@ -360,7 +472,59 @@ export function applyMutation(site: OwnerSite, mutation: SiteMutation): ApplyRes
       );
     }
 
+    /**
+     * IT NEVER LEAVES ITS SECTION, and that is the rule rather than a
+     * simplification. A section is what decides how the blocks inside it sit
+     * together, so a block's position only means anything relative to its
+     * siblings — moving one across a boundary would mean removing it from one
+     * arrangement and inventing a place for it in another, under that section's
+     * layout and caps. Sections are the thing that moves between sections.
+     */
+    case "moveBlock": {
+      const section = sectionOf(site, mutation.blockId);
+      if (!section) return ok(site);
+
+      // Gated on the layout, not merely on the tree existing: switching a bento
+      // to `single` keeps its tree so the arrangement survives switching back
+      // (see setSectionLayout), and while it is stacked the numbers are what
+      // renders. Touching the stored tree here would scramble the arrangement
+      // being kept.
+      const tree = section.layout_type === "bento" ? parseCell(section.root_cell) : null;
+      const order = renderOrder(
+        section.layout_type,
+        tree,
+        section.blocks.map((block) => block.id),
+      );
+
+      const index = order.indexOf(mutation.blockId);
+      // Not where it was when the move was made, so either this is the re-apply
+      // of an edit that already landed or something else moved it. Same guard as
+      // moveSection, for the same two reasons.
+      if (index === -1 || index !== mutation.fromIndex) return ok(site);
+
+      const target = mutation.direction === "up" ? index - 1 : index + 1;
+      // Nothing to trade places with. The permanent identity section holds
+      // exactly one block and always will, so it lands here rather than needing
+      // a refusal of its own — there is no swap to refuse.
+      if (target < 0 || target >= order.length) return ok(site);
+
+      const a = order[index];
+      const b = order[target];
+
+      return ok(
+        replaceSection(site, {
+          ...section,
+          blocks: swapBlockOrder(section.blocks, a, b),
+          root_cell: tree ? asJson(swapLeaves(tree, a, b)) : section.root_cell,
+        }),
+      );
+    }
+
     case "setBlockVisibility":
+      // The identity is what makes a public page a page rather than an
+      // anonymous one. Hiding it from strangers would leave a visitor looking
+      // at a document with no name on it and no way to tell whose it is.
+      if (isInPinnedSection(site, mutation.blockId)) return PINNED_REFUSAL;
       return ok(
         patchBlock(site, mutation.blockId, (block) => ({
           ...block,
@@ -442,6 +606,7 @@ export function coalesceKey(mutation: SiteMutation): string | null {
     case "moveSection":
     case "addBlock":
     case "deleteBlock":
+    case "moveBlock":
       return null;
   }
 }

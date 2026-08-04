@@ -17,6 +17,7 @@ import {
   setRatioAt,
   splitAtBlock,
   stackedTree,
+  swapLeaves,
   validateCellTree,
 } from "./cell";
 
@@ -330,6 +331,51 @@ describe("insertBlock", () => {
       tree = (insertBlock(tree, id(700 + i)) as { root: Cell }).root;
     }
     expect(insertBlock(tree, id(999))).toEqual({ ok: false, reason: "too_deep" });
+  });
+});
+
+describe("swapLeaves", () => {
+  it("exchanges two blocks without touching the shape", () => {
+    const tree = split("row", [leaf(A), leaf(B)], 0.3);
+    expect(swapLeaves(tree, A, B)).toEqual(split("row", [leaf(B), leaf(A)], 0.3));
+  });
+
+  /**
+   * The property that makes this safe to write straight back: a tree that passed
+   * validation still passes it, because only the ids at the leaves changed.
+   * Remove-and-reinsert has none of that — it collapses the split the block came
+   * from and picks a new home by `insertBlock`'s own rule.
+   */
+  it("keeps the depth, the ratios and the leaf set", () => {
+    const tree = split("row", [split("col", [leaf(A), leaf(B)], 0.7), leaf(C)], 0.4);
+    const swapped = swapLeaves(tree, A, C);
+
+    expect(cellLeaves(swapped)).toEqual([C, B, A]);
+    expect(cellDepth(swapped)).toBe(cellDepth(tree));
+    expect(validateCellTree(swapped, [A, B, C])).toBeNull();
+  });
+
+  it("swaps blocks that live in different splits", () => {
+    const tree = split("col", [split("row", [leaf(A), leaf(B)]), split("row", [leaf(C), leaf(D)])]);
+    expect(cellLeaves(swapLeaves(tree, B, C))).toEqual([A, C, B, D]);
+  });
+
+  it("is unchanged for an id that isn't in the tree", () => {
+    const tree = split("row", [leaf(A), leaf(B)]);
+    expect(swapLeaves(tree, A, D)).toEqual(split("row", [leaf(D), leaf(B)]));
+    expect(swapLeaves(tree, C, D)).toEqual(tree);
+  });
+
+  it("is unchanged when both ids are the same block", () => {
+    const tree = split("row", [leaf(A), leaf(B)]);
+    expect(swapLeaves(tree, A, A)).toBe(tree);
+  });
+
+  it("leaves the original tree untouched", () => {
+    const tree = split("row", [leaf(A), leaf(B)]);
+    const before = JSON.stringify(tree);
+    swapLeaves(tree, A, B);
+    expect(JSON.stringify(tree)).toBe(before);
   });
 });
 

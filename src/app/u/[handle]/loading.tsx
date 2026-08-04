@@ -1,4 +1,4 @@
-import { SkeletonCard, SkeletonPage, SkeletonTitle } from "@/components/skeleton";
+import { SkeletonCard, SkeletonPage } from "@/components/skeleton";
 
 /**
  * The public profile's route-level Suspense boundary.
@@ -18,18 +18,16 @@ import { SkeletonCard, SkeletonPage, SkeletonTitle } from "@/components/skeleton
  */
 export default function Loading() {
   return (
-    // The page's own container is `lg` so that a bento band has room; its card
-    // and actions are capped at `md` inside it. Both have to be mirrored here or
-    // the card jumps left the moment the real page arrives.
+    // The page's own container is `lg` so that a bento band has room; only the
+    // actions at the foot are capped at `md` inside it. Both have to be mirrored
+    // here or the page shifts the moment the real one arrives.
     <SkeletonPage width="max-w-lg xl:max-w-2xl">
-      <div className="max-w-md">
-        <SkeletonTitle />
-        <div className="mt-6">
-          <SkeletonCard className="h-72" />
-        </div>
-        <div className="mt-8">
-          <SkeletonCard className="h-32" />
-        </div>
+      <SkeletonCard className="h-64" />
+      <div className="mt-6">
+        <SkeletonCard className="h-40" />
+      </div>
+      <div className="mt-8 max-w-md">
+        <SkeletonCard className="h-32" />
       </div>
     </SkeletonPage>
   );
